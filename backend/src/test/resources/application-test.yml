@@ -1,0 +1,22 @@
+spring:
+  main:
+    banner-mode: off
+
+panel:
+  db:
+    # 动态属性会替换为本次运行创建的临时目录；这里只保留占位，确保默认业务库永不参与测试。
+    path: target/test-db/unused.db
+    allowed-root: target/test-db
+    init-script: classpath:db/init.sql
+    initialize: true
+  gateway:
+    mode: placeholder
+    evidence-enabled: false
+  orchestration:
+    capacity: 2
+    stage-delay-millis: 0
+
+logging:
+  level:
+    root: WARN
+    com.aipanel: INFO

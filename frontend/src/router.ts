@@ -11,6 +11,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       { path: '/', name: 'lobby', component: LobbyView },
       { path: '/discussions/:id/roster', name: 'roster', component: DiscussionView },
       { path: '/discussions/:id', name: 'discussion', component: () => import('./views/StudioView.vue') },
+      { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue') },
       { path: '/:pathMatch(.*)*', component: NotFoundView },
     ],
   })

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import fixture from '../../docs/contracts/api.fixtures.json'
+import fixture from '../../../docs/contracts/api.fixtures.json'
 import type {
   DiscussionListItem,
   DiscussionSnapshot,
@@ -9,10 +9,10 @@ import type {
   Perspective,
   Preset,
   PublicFocus,
-} from '../src/api/discussions'
-import { applyEvent } from '../src/api/discussion-events'
-import type { EventName } from '../src/api/discussion-events'
-import { defaultExpertCount, expertCounts, normalizeTopic, validateTopic } from '../src/topic'
+} from '../../src/api/discussions'
+import { applyEvent } from '../../src/api/discussion-events'
+import type { EventName } from '../../src/api/discussion-events'
+import { defaultExpertCount, expertCounts, normalizeTopic, validateTopic } from '../../src/topic'
 import { agendaFor } from './agenda'
 
 const template = fixture.snapshots.A0 as DiscussionSnapshot
@@ -107,9 +107,11 @@ function insightSet(speeches: { seq: number; participantId: string }[], names: M
   return { insightStatus: 'FRESH' as const, insightsThroughUtteranceSeq: latest, insights }
 }
 
-function send(response: ServerResponse, status: number, data: unknown = null, code = 'OK') {
+function send(response: ServerResponse, status: number, data: unknown = null) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
-  response.end(JSON.stringify({ code, message: code === 'OK' ? '成功' : '请求失败', data, timestamp: new Date().toISOString() }))
+  response.end(JSON.stringify({
+    code: status, message: status < 400 ? '成功' : '请求失败', data, timestamp: new Date().toISOString(),
+  }))
 }
 
 async function readBody(request: IncomingMessage): Promise<string> {
@@ -328,9 +330,9 @@ export function fixtureApi(): Plugin {
 
         const copy = pathname.match(/^\/presets\/([a-z0-9-]+)\/discussions$/)
         if (method === 'POST' && copy) {
-          if (await readBody(request)) return send(response, 400, null, 'B0001')
+          if (await readBody(request)) return send(response, 400, null)
           const preset = presets.find(item => item.slug === copy[1])
-          if (!preset) return send(response, 404, null, 'B0002')
+          if (!preset) return send(response, 404, null)
           const room = draft(preset)
           rooms.set(room.id, room)
           response.setHeader('Location', `/api/v1/discussions/${room.id}`)
@@ -341,9 +343,9 @@ export function fixtureApi(): Plugin {
           try {
             room = createCustomDraft(await readBody(request))
           } catch {
-            return send(response, 400, null, 'B0001')
+            return send(response, 400, null)
           }
-          if (!room) return send(response, 400, null, 'B0001')
+          if (!room) return send(response, 400, null)
           rooms.set(room.id, room)
           response.setHeader('Location', `/api/v1/discussions/${room.id}`)
           return send(response, 201, room)
@@ -358,7 +360,7 @@ export function fixtureApi(): Plugin {
           const raw = header ?? after[0] ?? '0'
           const cursor = Number(raw)
           if (typeof raw !== 'string' || !/^(0|[1-9]\d*)$/.test(raw) || !Number.isSafeInteger(cursor)
-            || cursor > room.lastEventSeq || (header === undefined && after.length > 1)) return send(response, 400, null, 'B0001')
+            || cursor > room.lastEventSeq || (header === undefined && after.length > 1)) return send(response, 400, null)
           const terminal = room.status === 'COMPLETED' || room.status === 'FAILED'
           if (terminal && cursor === room.lastEventSeq) {
             response.writeHead(204).end()
@@ -378,7 +380,7 @@ export function fixtureApi(): Plugin {
           return
         }
         if (room && method === 'POST' && match[2] === '/start') {
-          if (await readBody(request)) return send(response, 400, null, 'B0001')
+          if (await readBody(request)) return send(response, 400, null)
           if (room.status === 'DRAFT') {
             void run(room)
             return send(response, 202, { id: room.id, status: 'RUNNING' })
@@ -386,9 +388,9 @@ export function fixtureApi(): Plugin {
           if (room.status === 'RUNNING' || room.status === 'SUMMARIZING') {
             return send(response, 202, { id: room.id, status: room.status })
           }
-          return send(response, 409, null, 'B0003')
+          return send(response, 409, null)
         }
-        return send(response, 404, null, 'B0002')
+        return send(response, 404, null)
       })
     },
   }

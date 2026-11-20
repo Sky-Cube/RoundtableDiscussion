@@ -2,8 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { goals, stageLabels, statusLabels } from '../api/discussions'
-import { avatarStyleLabels, seatColor } from '../components/studio/avatar-style'
-import { avatarStyleFor } from '../components/studio/avatar-style'
+import { seatColor } from '../components/studio/avatar-style'
 import RoundtableScene from '../components/studio/RoundtableScene.vue'
 import FinalResultModal from '../components/studio/FinalResultModal.vue'
 import { useDiscussionSession } from '../composables/useDiscussionSession'
@@ -30,13 +29,13 @@ const insightKinds = [{ kind: 'CONSENSUS', label: '共识' }, { kind: 'DISAGREEM
 const utteranceLabels = { OPENING: '主持开场', EXPERT: '专家发言', FOLLOW_UP: '主持追问', BRIDGE: '主持串联', SUMMARY: '主持总结' }
 const connectionLabels = { connecting: '正在连接', connected: '实时连接', reconnecting: '正在重连', offline: '连接中断', closed: '', loading: '' }
 const stageEnglish = { IDLE: 'IDLE', PREPARING: 'PREPARING', SPEAKING: 'SPEAKING' } as const
+const stageStates = ['IDLE', 'PREPARING', 'SPEAKING'] as const
 const topicStatus = computed(() => room.value ? statusLabels[room.value.status] : '')
 const expertCount = computed(() => room.value?.participants.filter(member => member.role === 'EXPERT').length ?? 0)
 const speakingCount = computed(() => room.value?.participants.filter(member => member.stageStatus === 'SPEAKING').length ?? 0)
 const activeMemberId = computed(() => room.value?.participants.find(member => member.stageStatus === 'SPEAKING')?.id
   ?? room.value?.participants.find(member => member.stageStatus === 'PREPARING')?.id)
 const expertTranscript = computed(() => room.value?.transcript.filter(item => item.kind === 'EXPERT').length ?? 0)
-const styleFor = (index: number) => room.value ? avatarStyleFor(room.value.participants[index]!, index) : 'corporate'
 
 watch(() => room.value?.status, status => {
   if (status === 'COMPLETED' && !finalDismissed.value) finalOpen.value = true
@@ -194,9 +193,14 @@ onBeforeUnmount(() => {
             <span class="panel-count">{{ room.participants.length.toString().padStart(2, '0') }} SEATS</span>
           </header>
           <p class="studio-panel-sub">1 位主持人 · {{ expertCount }} 位专家 <span>{{ speakingCount ? speakingCount + ' 位发言中' : '现场待机' }}</span></p>
+          <div class="stage-legend" role="group" aria-label="专家状态示例">
+            <span v-for="state in stageStates" :key="state" class="stage-label" :data-state="state">
+              <i aria-hidden="true"></i>{{ stageEnglish[state] }} {{ stageLabels[state] }}
+            </span>
+          </div>
           <ul ref="memberList" class="member-status-list">
             <li
-              v-for="(member, index) in room.participants"
+              v-for="member in room.participants"
               :key="member.id"
               :data-member="member.id"
               :data-state="member.stageStatus"
@@ -204,19 +208,13 @@ onBeforeUnmount(() => {
             >
               <div class="member-status-heading">
                 <span class="member-color" aria-hidden="true"></span>
-                <span class="member-name">
-                  <strong>{{ member.displayName }}</strong>
-                  <small>{{ member.role === 'HOST' ? '主持人' : '专家' }} · {{ member.profession }}</small>
-                </span>
+                <span class="member-name">{{ member.displayName }}</span>
                 <span class="stage-label" :data-state="member.stageStatus">
                   <i aria-hidden="true"></i>{{ stageEnglish[member.stageStatus] }} {{ stageLabels[member.stageStatus] }}
                 </span>
               </div>
-              <dl>
-                <div><dt>公开关注点</dt><dd>{{ member.publicFocus ?? '无' }}</dd></div>
-                <div><dt>公开摘要</dt><dd>{{ member.publicSummary ?? '无' }}</dd></div>
-              </dl>
-              <span class="member-style">{{ avatarStyleLabels[styleFor(index)] }}形象</span>
+              <p class="member-role">{{ member.role === 'HOST' ? '主持人' : '专家' }} · {{ member.profession }}</p>
+              <p class="member-focus"><span>公开关注点</span>：{{ member.publicFocus ?? '暂无' }}</p>
             </li>
           </ul>
           <footer class="studio-panel-foot">
@@ -226,7 +224,11 @@ onBeforeUnmount(() => {
         </section>
 
         <section id="studio-panel-live" class="studio-live" aria-label="圆桌现场">
-          <RoundtableScene :participants="room.participants" :bubble="bubble" />
+          <RoundtableScene
+            :participants="room.participants"
+            :bubble="bubble"
+            :ended="room.status === 'COMPLETED' || room.status === 'FAILED'"
+          />
         </section>
 
         <section id="studio-panel-insights" class="panel studio-insights" aria-labelledby="insights-title">
@@ -237,30 +239,32 @@ onBeforeUnmount(() => {
             </div>
             <button v-if="room.status === 'COMPLETED'" type="button" class="text-button" @click="openFinal">最终结果</button>
           </header>
-          <p v-if="room.insightStatus === 'STALE'" class="insight-stale" role="status">观点更新暂缓，保留上次结果。</p>
-          <p v-else-if="room.insightStatus === 'PENDING'" class="muted">等待提炼共识与分歧。</p>
-          <p v-else-if="room.insights.length === 0" class="muted">本轮暂无有足够证据的共识或分歧。</p>
-          <section v-if="room.summary" class="host-summary">
-            <span class="eyebrow">HOST SUMMARY</span>
-            <h3>主持总结</h3>
-            <p>{{ room.summary }}</p>
-          </section>
-          <div v-for="group in insightKinds" :key="group.kind" class="insight-group" :data-kind="group.kind">
-            <h3><i aria-hidden="true"></i>{{ group.label }} <small>{{ group.kind }}</small></h3>
-            <ul>
-              <li v-for="insight in room.insights.filter(item => item.kind === group.kind)" :key="insight.id">
-                <p>{{ insight.text }}</p>
-                <div class="insight-evidence">
-                  <button
-                    v-for="seq in insight.evidenceUtteranceSeqs"
-                    :key="seq"
-                    type="button"
-                    class="citation"
-                    @click="jumpToSpeech(seq)"
-                  >证据 #{{ seq }}</button>
-                </div>
-              </li>
-            </ul>
+          <div class="insights-body">
+            <p v-if="room.insightStatus === 'STALE'" class="insight-stale" role="status">观点更新暂缓，保留上次结果。</p>
+            <p v-else-if="room.insightStatus === 'PENDING'" class="muted">等待提炼共识与分歧。</p>
+            <p v-else-if="room.insights.length === 0" class="muted">本轮暂无有足够证据的共识或分歧。</p>
+            <section v-if="room.summary" class="host-summary">
+              <span class="eyebrow">HOST SUMMARY</span>
+              <h3>主持总结</h3>
+              <p>{{ room.summary }}</p>
+            </section>
+            <div v-for="group in insightKinds" :key="group.kind" class="insight-group" :data-kind="group.kind">
+              <h3><i aria-hidden="true"></i>{{ group.label }} <small>{{ group.kind }}</small></h3>
+              <ul>
+                <li v-for="insight in room.insights.filter(item => item.kind === group.kind)" :key="insight.id">
+                  <p>{{ insight.text }}</p>
+                  <div class="insight-evidence">
+                    <button
+                      v-for="seq in insight.evidenceUtteranceSeqs"
+                      :key="seq"
+                      type="button"
+                      class="citation"
+                      @click="jumpToSpeech(seq)"
+                    >证据 #{{ seq }}</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
           <footer class="studio-panel-foot summary-foot">
             <span><i aria-hidden="true"></i> 随讨论实时提炼</span>

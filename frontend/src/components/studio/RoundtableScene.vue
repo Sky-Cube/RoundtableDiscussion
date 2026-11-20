@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Participant, Utterance } from '../../api/discussions'
-import { avatarStyleLabels } from './avatar-style'
-import { createRoundtable, seatPositions } from './roundtable'
+import { createRoundtable, seatPositions, type SeatAnchor } from './roundtable'
 
-const props = defineProps<{ participants: Participant[]; bubble?: Utterance }>()
+const props = defineProps<{ participants: Participant[]; bubble?: Utterance; ended?: boolean }>()
 const stage = ref<HTMLElement>()
 const canvas = ref<HTMLCanvasElement>()
 const rendered = ref(false)
-const projected = ref<{ x: number; y: number }[]>([])
+const projected = ref<SeatAnchor[]>([])
 const seats = computed(() => seatPositions(props.participants))
 const layout = computed(() => JSON.stringify(seats.value.map(({ id, color, style }) => [id, color, style])))
 const active = computed(() => props.participants.find(member => member.stageStatus === 'SPEAKING'))
@@ -18,18 +17,21 @@ const speech = computed(() => {
   if (active.value?.publicSpeech) {
     return { participantId: active.value.id, content: active.value.publicSpeech, frozen: false }
   }
+  // 讨论结束后不再保留定格气泡，让每位角色的姓名牌都能完整显示
+  if (props.ended) return undefined
   if (props.bubble && !active.value) {
     return { participantId: props.bubble.participantId, content: props.bubble.content, frozen: true }
   }
   return undefined
 })
-const activeSeat = computed(() => seats.value.find(seat => seat.id === active.value?.id))
+const stageSize = ref({ width: 0, height: 0 })
 let scene: ReturnType<typeof createRoundtable>
 let observer: ResizeObserver | undefined
-let textFrame: number | undefined
 
 function resize() {
-  if (stage.value && scene) projected.value = scene.render(stage.value.clientWidth, stage.value.clientHeight)
+  if (!stage.value || !scene) return
+  stageSize.value = { width: stage.value.clientWidth, height: stage.value.clientHeight }
+  projected.value = scene.render(stageSize.value.width, stageSize.value.height)
 }
 
 function draw() {
@@ -49,11 +51,27 @@ function draw() {
   }
 }
 
-function anchor(index: number) {
-  const position = projected.value[index]
+function headAnchor(index: number) {
   const angle = seats.value[index]?.angle ?? 0
-  return position ?? { x: 50 + Math.sin(angle) * 32, y: 46 + Math.cos(angle) * 24 }
+  return projected.value[index]?.head ?? { x: 50 + Math.sin(angle) * 32, y: 46 + Math.cos(angle) * 24 }
 }
+
+function anchorPixelY(index: number) {
+  return (headAnchor(index).y / 100) * stageSize.value.height
+}
+
+// 气泡向上展开约需 224px；空间不足时改为贴住场景顶部，避免被 overflow 裁掉首行
+function bubbleTop(index: number) {
+  const y = anchorPixelY(index)
+  return y < 224 ? `${8 - y}px` : undefined
+}
+
+// 姓名牌极小尺寸下也会顶出容器，这里在贴近顶部时改挂到角色下方
+function platePlacement(index: number): 'above' | 'below' {
+  return anchorPixelY(index) < 44 ? 'below' : 'above'
+}
+
+
 
 onMounted(() => {
   draw()
@@ -66,26 +84,14 @@ watch(layout, draw)
 watch(() => active.value?.id, id => {
   scene?.setActive(id)
 })
-watch(() => speech.value?.content, async () => {
+watch(() => (speech.value ? `${speech.value.participantId}:${speech.value.frozen}` : ''), async () => {
   await nextTick()
-  if (textFrame !== undefined) cancelAnimationFrame(textFrame)
   const text = stage.value?.querySelector<HTMLElement>('.seat-bubble--text p')
-  if (!text || text.scrollHeight <= text.clientHeight || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  const initialOffset = text.scrollTop
-  const distance = text.scrollHeight - text.clientHeight - initialOffset
-  if (distance <= 0) return
-  const duration = Math.max(1000, distance * 32)
-  const start = performance.now() + 500
-  const scrollSpeech = (time: number) => {
-    const progress = Math.min(1, Math.max(0, (time - start) / duration))
-    text.scrollTop = initialOffset + distance * progress
-    textFrame = progress < 1 ? requestAnimationFrame(scrollSpeech) : undefined
-  }
-  textFrame = requestAnimationFrame(scrollSpeech)
+  // 每条发言都从首行开始展示，超长内容交给用户滚动，避免自动滚动把开头留在可视区外
+  if (text) text.scrollTop = 0
 })
 onBeforeUnmount(() => {
   observer?.disconnect()
-  if (textFrame !== undefined) cancelAnimationFrame(textFrame)
   scene?.dispose()
 })
 </script>
@@ -99,7 +105,6 @@ onBeforeUnmount(() => {
       <span class="scene-caption__dot" :data-state="active ? 'SPEAKING' : focus ? 'PREPARING' : 'IDLE'" aria-hidden="true"></span>
       <span>{{ active ? '正在发言' : focus ? '最近发言' : '等待发言' }}</span>
       <strong v-if="focus" :style="{ color: seats.find(seat => seat.id === focus?.id)?.color }">{{ focus.displayName }}</strong>
-      <span class="scene-caption__style" v-if="activeSeat">{{ avatarStyleLabels[activeSeat.style] }}</span>
     </div>
 
     <div class="scene-note" aria-hidden="true">
@@ -115,8 +120,8 @@ onBeforeUnmount(() => {
       :data-member="seat.id"
       :data-state="membersById.get(seat.id)?.stageStatus"
       :data-avatar-style="seat.style"
-      :data-align="anchor(index).x < 34 ? 'left' : anchor(index).x > 66 ? 'right' : 'center'"
-      :style="{ left: anchor(index).x + '%', top: anchor(index).y + '%', '--seat-color': seat.color }"
+      :data-align="headAnchor(index).x < 34 ? 'left' : headAnchor(index).x > 66 ? 'right' : 'center'"
+      :style="{ left: headAnchor(index).x + '%', top: headAnchor(index).y + '%', '--seat-color': seat.color }"
     >
       <span v-if="!rendered" class="flat-avatar" :data-style="seat.style" aria-hidden="true"></span>
 
@@ -127,7 +132,9 @@ onBeforeUnmount(() => {
           'seat-bubble--frozen': speech?.participantId === seat.id && speech?.frozen,
           'seat-bubble--active': speech?.participantId === seat.id && !speech?.frozen,
         }"
-        :data-align="anchor(index).x < 34 ? 'left' : anchor(index).x > 66 ? 'right' : 'center'"
+        :data-align="headAnchor(index).x < 34 ? 'left' : headAnchor(index).x > 66 ? 'right' : 'center'"
+        :data-side="bubbleTop(index) ? 'pinned' : 'anchor'"
+        :style="bubbleTop(index) ? { '--bubble-top': bubbleTop(index) } : undefined"
         :aria-hidden="speech?.participantId !== seat.id"
         :aria-label="speech?.participantId === seat.id ? membersById.get(seat.id)?.displayName + '的发言' : undefined"
         :tabindex="speech?.participantId === seat.id ? 0 : undefined"
@@ -144,11 +151,20 @@ onBeforeUnmount(() => {
           </footer>
         </template>
       </div>
+    </div>
 
-      <span class="seat-name">
-        <i aria-hidden="true"></i>
-        {{ membersById.get(seat.id)?.displayName }}
-      </span>
+    <div
+      v-for="(seat, index) in seats"
+      v-show="speech?.participantId !== seat.id"
+      :key="`plate-${seat.id}`"
+      class="seat-plate"
+      :data-state="membersById.get(seat.id)?.stageStatus"
+      :data-placement="platePlacement(index)"
+      :style="{ left: headAnchor(index).x + '%', top: headAnchor(index).y + '%', '--seat-color': seat.color }"
+      aria-hidden="true"
+    >
+      <i></i>{{ membersById.get(seat.id)?.displayName }}
+      <em v-if="seat.participant.role === 'HOST'">主持</em>
     </div>
   </div>
 </template>

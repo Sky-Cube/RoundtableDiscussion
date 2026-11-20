@@ -15,7 +15,7 @@ export default defineConfig({
     { name: '390x844', use: { viewport: { width: 390, height: 844 } } },
   ],
   webServer: {
-    command: `npm run dev:fixture -- --port ${port} --strictPort`,
+    command: `npm run dev:test-fixture -- --port ${port} --strictPort`,
     url: baseURL,
     reuseExistingServer: false,
   },

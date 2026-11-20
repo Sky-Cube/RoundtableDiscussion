@@ -5,6 +5,7 @@
   "oneOf": [
     { "$ref": "#/$defs/rosterOutput" },
     { "$ref": "#/$defs/bidOutput" },
+    { "$ref": "#/$defs/skillEvidenceOutput" },
     { "$ref": "#/$defs/utteranceOutput" },
     { "$ref": "#/$defs/insightsOutput" },
     { "$ref": "#/$defs/interventionOutput" },
@@ -88,11 +89,121 @@
         }
       }
     },
+    "skillEvidenceOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discussion_id",
+        "insight_id",
+        "inner_evidence",
+        "outer_academic_evidence",
+        "check_result"
+      ],
+      "properties": {
+        "discussion_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "insight_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "inner_evidence": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "utterance_seq",
+              "participant_id",
+              "excerpt"
+            ],
+            "properties": {
+              "utterance_seq": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10
+              },
+              "participant_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "excerpt": {
+                "type": "string",
+                "minLength": 4,
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "outer_academic_evidence": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title",
+              "author",
+              "journal",
+              "year",
+              "doi",
+              "snippet"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 440
+              },
+              "author": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              },
+              "journal": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 320
+              },
+              "year": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4
+              },
+              "doi": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "snippet": {
+                "type": "string",
+                "minLength": 12,
+                "maxLength": 400
+              }
+            }
+          }
+        },
+        "check_result": {
+          "enum": [
+            "PASS",
+            "INNER_NOT_ENOUGH",
+            "NO_EVIDENCE"
+          ]
+        }
+      }
+    },
     "bidOutput": {
       "type": "object",
       "additionalProperties": false,
       "required": ["intent", "targetUtteranceSeq", "focusCode", "proposedClaim"],
       "properties": {
+        "searchQuery": { "type": ["string", "null"], "maxLength": 100 },
+        "searchPremise": { "type": ["string", "null"], "maxLength": 80 },
         "intent": { "enum": ["RAISE", "BUZZ", "ADD", "REBUT", "PASS"] },
         "targetUtteranceSeq": { "$ref": "#/$defs/nullableUtteranceSeq" },
         "focusCode": {
@@ -115,6 +226,8 @@
           "if": { "properties": { "intent": { "const": "PASS" } } },
           "then": {
             "properties": {
+              "searchQuery": { "type": "null" },
+              "searchPremise": { "type": "null" },
               "focusCode": { "type": "null" },
               "proposedClaim": { "type": "null" }
             }

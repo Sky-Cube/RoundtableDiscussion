@@ -1,0 +1,60 @@
+server:
+  address: 127.0.0.1
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: ai-panel-studio
+  jackson:
+    default-property-inclusion: always
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-null-for-primitives: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+    async:
+      # SSE 长连接：默认一小时，客户端断开后由容器回收。
+      request-timeout: 3600000
+  web:
+    resources:
+      add-mappings: false
+
+panel:
+  db:
+    # 业务库位置。相对路径按进程工作目录解析；allowed-root 之外一律拒绝。
+    path: data/panel.db
+    allowed-root: data
+    # 根目录 init.sql 在构建时以 db/init.sql 放入 classpath，此处也支持 file:../init.sql。
+    init-script: classpath:db/init.sql
+    initialize: true
+  gateway:
+    mode: real
+    base-url: ${PANEL_AI_BASE_URL:} # LLM API 基础 URL
+    model: ${PANEL_AI_MODEL:} # LLM 模型
+    api-key: ${PANEL_AI_API_KEY:} # LLM API 密钥
+    template-directory: ${PANEL_AI_TEMPLATE_DIRECTORY:}
+    template-version: ${PANEL_AI_TEMPLATE_VERSION:v2.7}
+    context-window: ${PANEL_AI_CONTEXT_WINDOW:32768}
+    evidence-enabled: ${PANEL_AI_EVIDENCE_ENABLED:true}
+  orchestration:
+    # 同时执行的讨论数量、单场专家发言上限与相邻发言间隔（毫秒）。
+    capacity: 2
+    max-expert-utterances: 0
+    stage-delay-millis: 2500
+  request:
+    allowed-hosts:
+      - 127.0.0.1
+      - localhost
+      - ::1
+    allowed-origin-ports:
+      - 5173
+      - 5183
+      - 8080
+
+logging:
+  file:
+    name: logs/panel.log
+  level:
+    com.aipanel: INFO
+    org.springframework.jdbc.core: WARN

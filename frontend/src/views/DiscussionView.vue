@@ -39,7 +39,7 @@ async function start() {
   } catch (cause) {
     if (!controller.signal.aborted) {
       startError.value = requestError(cause, '暂时无法开始讨论，请重试。')
-      startConflict.value = cause instanceof ApiError && cause.code === 'B0003'
+      startConflict.value = cause instanceof ApiError && cause.status === 409
     }
   } finally {
     if (!controller.signal.aborted) {

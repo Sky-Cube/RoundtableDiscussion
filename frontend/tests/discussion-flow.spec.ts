@@ -26,7 +26,7 @@ function fromFixture(item: { status: number; body?: unknown }) {
 }
 
 function ok(data: unknown) {
-  return response({ code: 'OK', message: '成功', data, timestamp: '2026-11-20T02:00:45Z' })
+  return response({ code: 200, message: '成功', data, timestamp: '2026-11-20T02:00:45Z' })
 }
 
 function deferredResponse() {

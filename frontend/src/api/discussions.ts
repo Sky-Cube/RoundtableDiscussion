@@ -29,7 +29,7 @@ export const stageLabels = { IDLE: '待机', PREPARING: '准备发言', SPEAKING
 export type StageStatus = keyof typeof stageLabels
 export const publicFocusLabels = ['关注关键取舍', '检验前提假设', '关注证据依据', '关注风险与边界条件', '关注影响范围', '关注实施路径'] as const
 export type PublicFocus = (typeof publicFocusLabels)[number]
-export type DiscussionErrorCode = 'B0005' | 'B9001' | 'B9002'
+export type DiscussionErrorCode = 500 | 502 | 503 | 504
 
 export interface DiscussionListItem {
   id: string
@@ -99,20 +99,23 @@ export interface DiscussionSnapshot {
   lastEventSeq: number
 }
 
-const errors: Readonly<Record<string, string>> = {
-  B0001: '请求参数无效，请检查后重试。',
-  B0002: '该讨论或示例已找不到。',
-  B0003: '这场讨论已经结束，可以查看房间。',
-  B0004: '演播厅暂时满员，请稍后重试。',
-  B0006: '此来源无法访问讨论服务。',
-  B4001: '模型服务尚未配置，请稍后重试。',
-  B9001: '暂时无法生成合格的专家阵容。可以重试，或从示例议题开始。',
-  B9002: '生成阵容超时。可以重试，或从示例议题开始。',
+const errors: Readonly<Partial<Record<number, string>>> = {
+  400: '请求参数无效，请检查后重试。',
+  403: '此来源无法访问讨论服务。',
+  404: '该讨论或示例已找不到。',
+  405: '不支持该请求方法。',
+  406: '无法提供所要求的响应格式。',
+  409: '这场讨论已经结束，可以查看房间。',
+  415: '不支持该请求内容类型。',
+  429: '演播厅暂时满员，请稍后重试。',
+  502: '暂时无法生成合格的专家阵容。可以重试，或从示例议题开始。',
+  503: '模型服务尚未配置，请稍后重试。',
+  504: '生成阵容超时。可以重试，或从示例议题开始。',
 }
 
 export class ApiError extends Error {
-  constructor(readonly code: string, readonly status: number) {
-    super(Object.hasOwn(errors, code) ? errors[code] : '讨论服务暂时不可用，请稍后重试。')
+  constructor(readonly status: number) {
+    super(errors[status] ?? '讨论服务暂时不可用，请稍后重试。')
   }
 }
 
@@ -128,8 +131,8 @@ async function request<T>(path: string, signal: AbortSignal, method = 'GET', bod
     body: body && JSON.stringify(body),
   })
   const envelope = await response.json().catch(() => null)
-  if (!response.ok || envelope?.code !== 'OK' || envelope.data == null) {
-    throw new ApiError(typeof envelope?.code === 'string' ? envelope.code : '', response.status)
+  if (!response.ok || envelope?.code !== response.status || envelope.data == null) {
+    throw new ApiError(response.status)
   }
   return envelope.data
 }
@@ -148,5 +151,61 @@ export const discussions = {
   events: (id: string, after: number) =>
     new EventSource(`/api/v1/discussions/${encodeURIComponent(id)}/events?after=${after}`),
   start: (id: string, signal: AbortSignal) =>
-    request<{ id: string; status: ActiveStatus }>(`/discussions/${encodeURIComponent(id)}/start`, signal, 'POST'),
+    request<StartResult>(`/discussions/${encodeURIComponent(id)}/start`, signal, 'POST'),
+}
+/* ---------------- 后台管理接口 ---------------- */
+
+export interface StartResult {
+  id: string
+  status: ActiveStatus | 'RUNNING' | 'SUMMARIZING'
+}
+
+export interface AdminOverview {
+  discussionCounts: Record<DiscussionStatus, number>
+  totalDiscussions: number
+  presetCount: number
+  utteranceCount: number
+  insightCount: number
+  eventCount: number
+}
+
+export interface AdminDiscussionRow {
+  id: string
+  topic: string
+  discussionGoal: DiscussionGoal
+  expertCount: number
+  status: DiscussionStatus
+  createdAt: string
+  startedAt: string | null
+  endedAt: string | null
+  errorCode: DiscussionErrorCode | null
+  lastEventSeq: number
+  participantCount: number
+  utteranceCount: number
+  insightCount: number
+  eventCount: number
+}
+
+export interface AdminEvent {
+  seq: number
+  type: string
+  createdAt: string
+  payload: unknown
+}
+
+export interface AdminRoom {
+  snapshot: DiscussionSnapshot
+  events: AdminEvent[]
+}
+
+export const admin = {
+  overview: (signal: AbortSignal) => request<AdminOverview>('/admin/overview', signal),
+  discussions: (status: string, keyword: string, date: string, signal: AbortSignal) => {
+    const search = new URLSearchParams({ status })
+    if (keyword.trim()) search.set('keyword', keyword.trim())
+    if (date.trim()) search.set('date', date.trim())
+    return request<AdminDiscussionRow[]>(`/admin/discussions?${search.toString()}`, signal)
+  },
+  room: (id: string, signal: AbortSignal) =>
+    request<AdminRoom>(`/admin/discussions/${encodeURIComponent(id)}`, signal),
 }

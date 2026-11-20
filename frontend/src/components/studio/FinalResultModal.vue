@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { DiscussionSnapshot } from '../../api/discussions'
 import AvatarPortrait from './AvatarPortrait.vue'
-import { avatarStyleFor, avatarStyleLabels } from './avatar-style'
 
 const props = defineProps<{ open: boolean; room: DiscussionSnapshot }>()
 const emit = defineEmits<{
@@ -16,10 +15,7 @@ const closeButton = ref<HTMLButtonElement>()
 
 const consensus = computed(() => props.room.insights.filter(item => item.kind === 'CONSENSUS'))
 const disagreements = computed(() => props.room.insights.filter(item => item.kind === 'DISAGREEMENT'))
-const participantRows = computed(() => props.room.participants.map((member, index) => ({
-  member,
-  style: avatarStyleFor(member, index),
-})))
+const participantRows = computed(() => props.room.participants)
 const duration = computed(() => {
   if (!props.room.startedAt || !props.room.endedAt) return '—'
   const seconds = Math.max(0, Math.round((Date.parse(props.room.endedAt) - Date.parse(props.room.startedAt)) / 1000))
@@ -127,11 +123,11 @@ onMounted(() => {
       </div>
 
       <section class="result-participants" aria-label="本场嘉宾">
-        <div v-for="row in participantRows" :key="row.member.id" class="result-person">
-          <AvatarPortrait :participant="row.member" :index="row.member.role === 'HOST' ? 0 : room.participants.indexOf(row.member)" compact />
+        <div v-for="(member, index) in participantRows" :key="member.id" class="result-person">
+          <AvatarPortrait :participant="member" :index="member.role === 'HOST' ? 0 : index" compact />
           <span>
-            <strong>{{ row.member.displayName }}</strong>
-            <small>{{ row.member.role === 'HOST' ? '主持人' : row.member.profession }} · {{ avatarStyleLabels[row.style] }}</small>
+            <strong>{{ member.displayName }}</strong>
+            <small>{{ member.role === 'HOST' ? '主持人' : member.profession }}</small>
           </span>
         </div>
       </section>

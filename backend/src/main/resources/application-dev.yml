@@ -1,0 +1,13 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+panel:
+  gateway:
+    # 配齐真实模型参数即读取运行时模板；显式 scripted 可复现离线演示。
+    mode: ${PANEL_AI_MODE:auto}
+
+logging:
+  level:
+    com.aipanel: DEBUG

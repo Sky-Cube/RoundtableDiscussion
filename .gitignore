@@ -24,6 +24,7 @@ test-results/
 
 # 开发期间手动截取的界面截图，可随时重新截取
 frontend/screenshots/
+/.screenshots/
 
 # SQLite 本地数据库与事务文件
 *.db
@@ -38,10 +39,14 @@ frontend/screenshots/
 *.sqlite3-journal
 *.sqlite3-wal
 *.sqlite3-shm
+# 本地运行数据目录：数据库、备份等运行时文件一律不提交
+/data/
+/backend/data/
 
 # 本地日志、编辑器与系统文件
 *.log
 *.log.*
+logs/
 .idea/
 *.iml
 .vscode/
@@ -60,3 +65,5 @@ docs/AI圆桌*
 docs/evidence
 prompts/
 AI开发实习生远程作业-AI圆桌讨论WebAppMVP.md
+# 仅忽略根目录说明文件，保留 backend/frontend 等子目录 README
+/README.md

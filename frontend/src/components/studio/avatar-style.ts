@@ -22,15 +22,6 @@ export const avatarStyleLabels: Record<AvatarStyle, string> = {
   casual: '休闲',
 }
 
-export const avatarStyleDescriptions: Record<AvatarStyle, string> = {
-  anchor: '稳重的节目主持形象',
-  corporate: '利落的职场西装形象',
-  anime: '明快的二次元形象',
-  creative: '松弛的创意工作者形象',
-  scholar: '克制的研究者形象',
-  casual: '自然的日常休闲形象',
-}
-
 const skinTones = ['#e7d2be', '#d8b99f', '#c79e7e', '#efddcb', '#bb8e6d', '#dfc4aa', '#d1aa8c']
 const hairTones = ['#26211e', '#3a2b24', '#1e1d1c', '#4d392e', '#2a2421', '#3d2d24']
 

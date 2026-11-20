@@ -55,7 +55,8 @@ function isRoomStatus(value: unknown): value is RoomStatus {
   }
   if (!utc(value.endedAt) || Date.parse(value.endedAt) < Date.parse(value.startedAt)) return false
   if (value.status === 'COMPLETED') return value.errorCode === null
-  return value.status === 'FAILED' && (value.errorCode === 'B0005' || value.errorCode === 'B9001' || value.errorCode === 'B9002')
+  return value.status === 'FAILED'
+    && (value.errorCode === 500 || value.errorCode === 502 || value.errorCode === 503 || value.errorCode === 504)
 }
 
 function isParticipantStatus(value: unknown): value is ParticipantStatus {

@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "dev", "tests", "*.config.ts"]
+  "include": ["src", "tests", "*.config.ts"]
 }

@@ -24,14 +24,19 @@ export interface SeatPosition {
   style: AvatarStyle
 }
 
+export interface SeatAnchor {
+  /** 角色头顶上方的投影点，用于挂载姓名牌与发言气泡 */
+  head: { x: number; y: number }
+}
+
 export interface RoundtableController {
-  render: (width: number, height: number) => { x: number; y: number }[]
+  render: (width: number, height: number) => SeatAnchor[]
   setActive: (id: string | undefined) => void
   dispose: () => void
 }
 
-const TABLE_RADIUS = 3.05
-const SEAT_RADIUS = 3.72
+const TABLE_RADIUS = 2.86
+const SEAT_RADIUS = 3.44
 
 export function seatPositions(members: Participant[]): SeatPosition[] {
   const ordered = [...members.filter(member => member.role === 'HOST'), ...members.filter(member => member.role === 'EXPERT')]
@@ -170,11 +175,12 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
     map: woodTexture, color: '#b58a65', roughness: 0.48, metalness: 0.02, clearcoat: 0.28, clearcoatRoughness: 0.34, envMapIntensity: 0.56,
   })
   const darkWood = material('#4b3628', 0.62, 0.01)
-  const top = add(scene, new THREE.CylinderGeometry(TABLE_RADIUS, TABLE_RADIUS, 0.15, 96), wood, 0, 1.51, 0)
+  // 桌面高度参考真实坐姿：桌面略低于人的肩部，前臂才能自然搭在桌沿
+  const top = add(scene, new THREE.CylinderGeometry(TABLE_RADIUS, TABLE_RADIUS, 0.15, 96), wood, 0, 1.19, 0)
   top.receiveShadow = true
-  const edge = add(scene, new THREE.TorusGeometry(TABLE_RADIUS + 0.005, 0.024, 12, 96), material('#3e2d22', 0.4, 0.15), 0, 1.582, 0)
+  const edge = add(scene, new THREE.TorusGeometry(TABLE_RADIUS + 0.005, 0.024, 12, 96), material('#3e2d22', 0.4, 0.15), 0, 1.262, 0)
   edge.rotation.x = Math.PI / 2
-  add(scene, new THREE.CylinderGeometry(0.5, 0.7, 0.84, 48), darkWood, 0, 0.46, 0)
+  add(scene, new THREE.CylinderGeometry(0.5, 0.7, 1.1, 48), darkWood, 0, 0.56, 0)
   add(scene, new THREE.CylinderGeometry(1.36, 1.5, 0.08, 64), darkWood, 0, 0.04, 0)
 
   const inlay = new THREE.Mesh(
@@ -182,7 +188,7 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
     new THREE.MeshStandardMaterial({ color: '#313a40', roughness: 0.46, metalness: 0.18, envMapIntensity: 0.58 }),
   )
   inlay.rotation.x = -Math.PI / 2
-  inlay.position.y = 1.588
+  inlay.position.y = 1.268
   inlay.receiveShadow = true
   scene.add(inlay)
   const inlayRing = new THREE.Mesh(
@@ -190,14 +196,14 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
     new THREE.MeshStandardMaterial({ color: '#9c875f', roughness: 0.28, metalness: 0.78 }),
   )
   inlayRing.rotation.x = -Math.PI / 2
-  inlayRing.position.y = 1.589
+  inlayRing.position.y = 1.269
   scene.add(inlayRing)
   const center = new THREE.Mesh(
     new THREE.CircleGeometry(0.12, 48),
     new THREE.MeshStandardMaterial({ color: '#c8b58c', roughness: 0.25, metalness: 0.8 }),
   )
   center.rotation.x = -Math.PI / 2
-  center.position.y = 1.59
+  center.position.y = 1.27
   scene.add(center)
 
   const seatVisuals: SeatVisual[] = []
@@ -220,7 +226,7 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
 
     const figure = createFigure(seat.participant, index, seat.color)
     figure.group.position.z = -0.18
-    figure.group.scale.setScalar(0.98 + (index % 4) * 0.016)
+    figure.group.scale.setScalar(1.08 + (index % 4) * 0.014)
     figure.seatAngle = seat.angle
     wrapper.add(figure.group)
     seatVisuals.push({ seat, wrapper, figure })
@@ -256,24 +262,32 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
   let disposed = false
   let fitted = false
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  const clock = new THREE.Clock()
+  // 使用 rAF 时间戳计算动画时间，避免 THREE.Clock 的弃用告警
+  const startedAt = performance.now()
 
   function fit(width: number, height: number) {
     const aspect = width / height
     camera.aspect = aspect
     camera.fov = 35
     const aspectFit = aspect < 1.18 ? 1 + (1.18 - aspect) * 0.72 : 1
-    const widthFit = Math.min(1.16, Math.max(1, 1180 / Math.max(width, 1)))
+    const widthFit = Math.min(1.16, Math.max(1, 1100 / Math.max(width, 1)))
     const fitScale = aspectFit * widthFit
-    camera.position.set(0, 6.1 * fitScale, 12.25 * fitScale)
-    camera.lookAt(0, 1.36, 0.14)
+    camera.position.set(0, 5.75 * fitScale, 11.5 * fitScale)
+    camera.lookAt(0, 1.25, 0.1)
+    // 画面整体上移，给右下角的讨论总结面板留出空间，避免遮挡前排角色与姓名牌
+    camera.setViewOffset(width, height, 0, Math.round(height * 0.06), width, height)
     camera.updateProjectionMatrix()
     fitted = true
   }
 
-  function project(seat: SeatPosition) {
-    const point = new THREE.Vector3(seat.x, 2.52, seat.z).project(camera)
+  function projectPoint(x: number, y: number, z: number) {
+    const point = new THREE.Vector3(x, y, z).project(camera)
     return { x: (point.x + 1) * 50, y: (1 - point.y) * 50 }
+  }
+
+  function anchorOf(seat: SeatPosition): SeatAnchor {
+    // 姓名牌与发言气泡共用头顶上方的锚点，保证每位角色都有可读的名字
+    return { head: projectPoint(seat.x, 2.68, seat.z) }
   }
 
   function targetYaw(seat: SeatPosition) {
@@ -290,7 +304,7 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
     frame = requestAnimationFrame(tick)
     if (!fitted || time - lastFrame < 32) return
     lastFrame = time
-    const elapsed = clock.getElapsedTime()
+    const elapsed = (time - startedAt) / 1000
     for (const visual of seatVisuals) {
       visual.figure.update(elapsed, targetYaw(visual.seat), activeId === visual.seat.id, reduced)
     }
@@ -304,7 +318,7 @@ export function createRoundtable(canvas: HTMLCanvasElement, seats: SeatPosition[
       renderer.setSize(width, height, false)
       renderer.render(scene, camera)
       if (!reduced && !frame) frame = requestAnimationFrame(tick)
-      return seats.map(project)
+      return seats.map(anchorOf)
     },
     setActive(id: string | undefined) {
       activeId = id

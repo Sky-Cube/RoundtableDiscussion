@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agendaFor, isNonSequential } from '../dev/agenda'
+import { agendaFor, isNonSequential } from './fixtures/agenda'
 
 describe('fixture speaking agenda', () => {
   it.each([2, 3, 4, 5, 6])('covers every expert for %i experts', count => {

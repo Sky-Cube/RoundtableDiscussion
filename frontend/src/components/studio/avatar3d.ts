@@ -60,7 +60,8 @@ function hairStyle(
   index: number,
 ) {
   addMesh(head, new THREE.SphereGeometry(0.235, 24, 16, 0, Math.PI * 2, 0, 1.3), hair, [0, 2.09, 0.01], [0.02, 0, 0], [1.01, 1.05, 1.01])
-  addMesh(head, new THREE.SphereGeometry(0.237, 24, 16, -Math.PI * 0.06, Math.PI * 1.12, 1.02, Math.PI - 1.02), hair, [0, 2.09, 0.008], undefined, [1.015, 1.015, 1.015])
+  // 后脑整片头发：保证背面视角也有完整发型，而不是露出肤色
+  addMesh(head, new THREE.SphereGeometry(0.238, 26, 20, 0, Math.PI, 0.42, 2.5), hair, [0, 2.08, 0.004], undefined, [1.02, 1.04, 1.02])
 
   if (style === 'anime') {
     for (const [x, y, z, scale] of [
@@ -86,6 +87,9 @@ function hairStyle(
   } else if (style === 'casual') {
     addMesh(head, new THREE.ConeGeometry(0.09, 0.18, 8), hair, [0.06, 2.29, -0.08], [0.35, 0.2, -0.25])
     ellipse(head, hair, -0.13, 2.2, -0.17, 0.09, 0.1, 0.07, [0.2, 0, 0.3])
+    // 脑后马尾，背影也能区分造型
+    ellipse(head, hair, 0, 2.12, 0.22, 0.1, 0.22, 0.1)
+    ellipse(head, hair, 0, 1.94, 0.25, 0.07, 0.14, 0.07)
   } else {
     addMesh(head, new THREE.BoxGeometry(0.23, 0.075, 0.08), hair, [-0.02, 2.24, -0.17], [0.15, 0.12, -0.22])
     ellipse(head, hair, 0.18, 2.13, 0.02, 0.06, 0.13, 0.08, [0, 0, -0.15])
@@ -145,12 +149,16 @@ function addOutfit(
     collarBand.position.set(0, 1.53, -0.22)
     collarBand.rotation.x = Math.PI / 2.1
     body.add(collarBand)
+    // 背后的蝴蝶结，强化学院风格
+    for (const x of [-0.1, 0.1]) ellipse(body, material(new THREE.Color(color).offsetHSL(0, 0.12, 0.16)), x, 1.56, 0.26, 0.08, 0.055, 0.03, [0, 0, x > 0 ? -0.3 : 0.3])
   } else if (style === 'creative') {
     const cowl = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.045, 8, 24), jacketDark)
     cowl.position.set(0, 1.68, -0.01)
     cowl.rotation.x = Math.PI / 2
     body.add(cowl)
     addMesh(body, new THREE.CapsuleGeometry(0.028, 0.22, 4, 8), jacketDark, [-0.09, 1.5, -0.28], [-0.1, 0, 0.12])
+    // 围巾垂在背后的尾端
+    addMesh(body, new THREE.CapsuleGeometry(0.032, 0.3, 4, 8), jacketDark, [0.04, 1.34, 0.27], [0.14, 0, 0.06])
   } else if (style === 'scholar') {
     const cardigan = new THREE.Mesh(new RoundedBoxGeometry(0.48, 0.45, 0.08, 2, 0.04), jacket)
     cardigan.position.set(0, 1.36, -0.2)
@@ -183,8 +191,8 @@ export function createFigure(participant: Participant, index: number, seatColor:
   const body = new THREE.Group()
   group.add(body)
 
-  const jacket = material(color.clone().offsetHSL(0, -0.02, -0.02), 0.68, 0.03)
-  const jacketDark = material(color.clone().offsetHSL(0, -0.05, -0.15), 0.76, 0.02)
+  const jacket = material(color.clone().offsetHSL(0, -0.16, -0.3), 0.66, 0.04)
+  const jacketDark = material(color.clone().offsetHSL(0, -0.2, -0.42), 0.74, 0.02)
   const shirt = material('#eef2f2', 0.84)
   const skin = material(palette.skin, 0.64)
   const skinShadow = material(new THREE.Color(palette.skin).offsetHSL(0, -0.02, -0.08), 0.7)
@@ -194,15 +202,25 @@ export function createFigure(participant: Participant, index: number, seatColor:
   const hair = material(hairColor, 0.82)
   const dark = material('#202a30', 0.5)
 
-  addMesh(body, new THREE.CapsuleGeometry(0.3, 0.48, 5, 18), jacket, [0, 1.35, 0.01], undefined, [1.24, 1, 0.88])
-  ellipse(body, jacket, 0, 1.66, 0.01, 0.46, 0.24, 0.3)
-  addMesh(body, new THREE.CapsuleGeometry(0.2, 0.42, 4, 14), material('#2d3a43'), [0, 0.72, -0.04], [0.1, 0, 0], [1.1, 1, 0.8])
+  addMesh(body, new THREE.CapsuleGeometry(0.3, 0.48, 5, 18), jacket, [0, 1.35, 0.01], undefined, [1.14, 1.02, 0.88])
+  ellipse(body, jacket, 0, 1.66, 0.01, 0.43, 0.24, 0.29)
+  // 肩部用两个椭球做出自然斜肩，避免背影出现一块平板
+  for (const x of [-0.24, 0.24]) ellipse(body, jacket, x, 1.62, 0.01, 0.18, 0.16, 0.22)
+  addMesh(body, new RoundedBoxGeometry(0.018, 0.5, 0.012, 2, 0.006), jacketDark, [0, 1.35, 0.275])
+  addMesh(body, new RoundedBoxGeometry(0.6, 0.09, 0.03, 2, 0.014), jacketDark, [0, 1.12, 0.24])
+  addMesh(body, new THREE.CapsuleGeometry(0.2, 0.42, 4, 14), material('#333f48'), [0, 0.72, -0.04], [0.1, 0, 0], [1.1, 1, 0.8])
 
   const neck = addMesh(body, new THREE.CylinderGeometry(0.085, 0.095, 0.15, 14), skin, [0, 1.83, 0])
   neck.castShadow = true
+  // 后颈处露出的衬衫领口
+  const collarRing = addMesh(body, new THREE.TorusGeometry(0.106, 0.024, 10, 22), shirt, [0, 1.795, 0])
+  collarRing.rotation.x = Math.PI / 2
   addOutfit(body, style, color, jacket, jacketDark, shirt, index)
 
   const head = new THREE.Group()
+  // 稍微放大头部并留出颈部，避免头直接压在肩膀上
+  head.position.y = 0.01
+  head.scale.setScalar(1.06)
   body.add(head)
   addMesh(head, new THREE.SphereGeometry(0.225, 28, 22), skin, [0, 2.08, 0], undefined, [0.93, 1.03, 0.92])
   for (const x of [-0.212, 0.212]) ellipse(head, skin, x, 2.08, 0.005, 0.04, 0.055, 0.04)
@@ -232,12 +250,14 @@ export function createFigure(participant: Participant, index: number, seatColor:
   const arms: THREE.Group[] = []
   for (const sign of [-1, 1]) {
     const arm = new THREE.Group()
-    arm.position.set(sign * 0.36, 1.63, -0.01)
-    arm.rotation.set(-0.34, 0, sign * -0.12)
+    arm.position.set(sign * 0.36, 1.66, -0.02)
+    arm.rotation.set(-0.12, sign * -0.1, 0)
     body.add(arm)
-    addMesh(arm, new THREE.CapsuleGeometry(0.075, 0.28, 4, 10), jacket, [0, -0.14, 0], undefined, [1, 1, 0.95])
-    addMesh(arm, new THREE.CapsuleGeometry(0.065, 0.22, 4, 10), jacketDark, [0, -0.33, -0.1], [-0.55, 0, 0])
-    addMesh(arm, new THREE.SphereGeometry(0.062, 12, 10), skin, [0, -0.45, -0.21], undefined, [1.1, 0.66, 1.25])
+    // 上臂自然下垂，前臂稍微抬起搭在桌面上，形成真实坐姿
+    addMesh(arm, new THREE.CapsuleGeometry(0.085, 0.24, 4, 12), jacket, [0, -0.2, -0.03], [0.3, 0, 0], [1, 1, 0.95])
+    addMesh(arm, new THREE.SphereGeometry(0.078, 12, 10), jacketDark, [0, -0.34, -0.08])
+    addMesh(arm, new THREE.CapsuleGeometry(0.07, 0.3, 4, 12), jacketDark, [0, -0.37, -0.22], [-Math.PI / 2 + 0.11, 0, 0])
+    addMesh(arm, new THREE.SphereGeometry(0.062, 12, 10), skin, [0, -0.37, -0.4], undefined, [1.1, 0.62, 1.3])
     arms.push(arm)
   }
   const rightArm = arms[1]!
@@ -274,8 +294,9 @@ export function createFigure(participant: Participant, index: number, seatColor:
       mouth.scale.x = speaking && !reduced ? 0.9 + Math.sin(time * 4.2 + phase) * 0.15 : 1
       const blink = !reduced && (time + phase) % 4.3 < 0.11 ? 0.08 : 1
       eyeGroup.scale.y = blink
-      rightArm.rotation.x = -0.34 + (speaking && !reduced ? -0.08 + Math.sin(time * 2.1 + phase) * 0.04 : 0)
-      leftArm.rotation.x = -0.34
+      // 基准角度与坐姿初始姿态保持一致，避免发言瞬间手臂突跳
+      rightArm.rotation.x = -0.12 + (speaking && !reduced ? -0.09 + Math.sin(time * 2.1 + phase) * 0.045 : 0)
+      leftArm.rotation.x = -0.12
       const targetRing = speaking ? 0.92 : 0.24
       ringMaterial.opacity += (targetRing - ringMaterial.opacity) * 0.06
       const ringScale = speaking && !reduced ? 1 + Math.sin(time * 3.2 + phase) * 0.05 : 1

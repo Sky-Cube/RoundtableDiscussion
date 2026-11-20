@@ -21,8 +21,8 @@
     "publicFocus": {"enum":["关注关键取舍","检验前提假设","关注证据依据","关注风险与边界条件","关注影响范围","关注实施路径"]},
     "publicSummary": {"type":["string","null"],"minLength":1,"maxLength":80,"pattern":"\\S"},
     "publicSpeech": {"type":["string","null"],"minLength":1,"maxLength":120,"pattern":"\\S"},
-    "errorCode": {"enum":["B0001","B0006","B0002","B0003","B0004","B0005","B9001","B4001","B9002"]},
-    "discussionErrorCode": {"enum":["B0005","B9001","B9002"]},
+    "errorCode": {"enum":[400,403,404,405,406,409,415,429,500,502,503,504]},
+    "discussionErrorCode": {"enum":[500,502,503,504]},
     "listDiscussionsRequest": {
       "type": "object",
       "properties": {
@@ -416,7 +416,7 @@
     "listDiscussionsResponse": {
       "type": "object",
       "properties": {
-        "code": {"const":"OK"},
+        "code": {"const":200},
         "message": {"type":"string","minLength":1},
         "data": {"type":"array","items":{"$ref":"#/$defs/discussionListItem"},"minItems":0},
         "timestamp": {"$ref":"#/$defs/utcTime"}
@@ -427,7 +427,7 @@
     "createDiscussionResponse": {
       "type": "object",
       "properties": {
-        "code": {"const":"OK"},
+        "code": {"const":201},
         "message": {"type":"string","minLength":1},
         "data": {"allOf":[{"$ref":"#/$defs/discussionSnapshot"},{"properties":{"status":{"const":"DRAFT"}}}]},
         "timestamp": {"$ref":"#/$defs/utcTime"}
@@ -439,7 +439,7 @@
     "startDiscussionResponse": {
       "type": "object",
       "properties": {
-        "code": {"const":"OK"},
+        "code": {"const":202},
         "message": {"type":"string","minLength":1},
         "data": {
           "type": "object",
@@ -455,7 +455,7 @@
     "getDiscussionResponse": {
       "type": "object",
       "properties": {
-        "code": {"const":"OK"},
+        "code": {"const":200},
         "message": {"type":"string","minLength":1},
         "data": {"$ref":"#/$defs/discussionSnapshot"},
         "timestamp": {"$ref":"#/$defs/utcTime"}
@@ -466,7 +466,7 @@
     "listPresetsResponse": {
       "type": "object",
       "properties": {
-        "code": {"const":"OK"},
+        "code": {"const":200},
         "message": {"type":"string","minLength":1},
         "data": {"type":"array","items":{"$ref":"#/$defs/preset"},"minItems":5},
         "timestamp": {"$ref":"#/$defs/utcTime"}
@@ -487,45 +487,57 @@
     },
     "httpError": {
       "type": "object",
-      "properties": {"status":{"enum":[400,403,404,409,429,500,502,503,504]},"body":{"$ref":"#/$defs/errorResponse"}},
+      "properties": {"status":{"enum":[400,403,404,405,406,409,415,429,500,502,503,504]},"body":{"$ref":"#/$defs/errorResponse"}},
       "required": ["status","body"],
       "additionalProperties": false,
       "allOf": [
         {
+          "if": {"required":["status"],"properties":{"status":{"const":405}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":405}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":406}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":406}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":415}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":415}}}}}
+        },
+        {
           "if": {"required":["status"],"properties":{"status":{"const":400}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0001"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":400}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":403}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0006"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":403}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":404}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0002"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":404}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":409}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0003"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":409}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":429}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0004"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":429}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":500}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B0005"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":500}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":502}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B9001"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":502}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":503}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B4001"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":503}}}}}
         },
         {
           "if": {"required":["status"],"properties":{"status":{"const":504}}},
-          "then": {"properties":{"body":{"properties":{"code":{"const":"B9002"}}}}}
+          "then": {"properties":{"body":{"properties":{"code":{"const":504}}}}}
         }
       ]
     },

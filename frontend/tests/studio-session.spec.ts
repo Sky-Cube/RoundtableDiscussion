@@ -36,7 +36,7 @@ class FakeEventSource extends EventTarget {
 }
 
 function response(data: unknown) {
-  return new Response(JSON.stringify({ code: 'OK', data }))
+  return new Response(JSON.stringify({ code: 200, data }))
 }
 
 async function open() {
@@ -121,7 +121,7 @@ describe('P04 房间会话与演播厅', () => {
     expect(streams).toHaveLength(1)
   })
 
-  it('发言期间应用公开关注、摘要和前缀，结束后保留完整文本', async () => {
+  it('发言期间应用公开关注与发言前缀，结束后保留完整文本', async () => {
     const { wrapper } = await open()
     const data = a(4).data
     streams[0].frame(a(3))
@@ -130,7 +130,7 @@ describe('P04 房间会话与演播厅', () => {
     } })
     await flushPromises()
     expect(wrapper.get('.scene-caption').text()).toContain('正在发言陈简')
-    expect(wrapper.get('.member-status-list [data-member="e1"]').text()).toContain('仅公开讨论的实施条件。')
+    expect(wrapper.get('.member-status-list [data-member="e1"]').text()).toContain('公开关注点：关注关键取舍')
     expect(wrapper.get('.seat-bubble--text p').text()).toBe('A 可先采购完整方案')
     expect(wrapper.findAll('[data-speech]')).toHaveLength(1)
     streams[0].frame(a(5))
@@ -138,7 +138,7 @@ describe('P04 房间会话与演播厅', () => {
     await flushPromises()
     expect(wrapper.get('.seat-bubble--text p').text()).toBe('A 可先采购完整方案，通过小流量验证首次解决率。')
     expect(wrapper.findAll('.seat-bubble--text')).toHaveLength(1)
-    expect(wrapper.get('.member-status-list [data-member="e1"]').text()).toContain('公开摘要无')
+    expect(wrapper.get('.member-status-list [data-member="e1"]').text()).not.toContain('仅公开讨论的实施条件。')
   })
 
   it('区分有效空结论、暂缓、恢复与终态', async () => {

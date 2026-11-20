@@ -73,6 +73,5 @@ const glasses = computed(() => ['corporate', 'scholar'].includes(style.value) &&
       <path v-if="style === 'creative'" class="portrait-neckline" d="M45 100c5 3 9 5 15 5s10-2 15-5" />
       <circle v-if="style === 'creative'" cx="87" cy="70" r="2.4" class="portrait-earring" />
     </svg>
-    <span v-if="compact" class="avatar-portrait__label">{{ label }}</span>
   </span>
 </template>

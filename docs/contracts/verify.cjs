@@ -312,7 +312,7 @@ for (const step of fixture.steps) {
             const result = subscription(room, step);
             assert.equal(result.status, step.status);
             assert.deepEqual(result.frames.map(({ data }) => data.seq), step.delivered ?? []);
-            if (step.code) assert.equal(step.code, {400: 'B0001', 429: 'B0004'}[result.status]);
+            if (step.code !== undefined) assert.equal(step.code, result.status);
             if (step.delivered) replayed[room] = result.frames.map(({ data }) => data.seq);
             break;
         }
