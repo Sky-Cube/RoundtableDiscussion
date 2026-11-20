@@ -19,6 +19,8 @@
     "discussionGoal": {"enum":["EVALUATE","PROPOSE","SOLVE","EXPLORE"]},
     "perspective": {"enum":["EVIDENCE","DELIVERY","COST","RISK","USER_IMPACT","GOVERNANCE"]},
     "publicFocus": {"enum":["关注关键取舍","检验前提假设","关注证据依据","关注风险与边界条件","关注影响范围","关注实施路径"]},
+    "publicSummary": {"type":["string","null"],"minLength":1,"maxLength":80,"pattern":"\\S"},
+    "publicSpeech": {"type":["string","null"],"minLength":1,"maxLength":120,"pattern":"\\S"},
     "errorCode": {"enum":["B0001","B0006","B0002","B0003","B0004","B0005","B9001","B4001","B9002"]},
     "discussionErrorCode": {"enum":["B0005","B9001","B9002"]},
     "listDiscussionsRequest": {
@@ -167,7 +169,9 @@
         "perspective": {"anyOf":[{"$ref":"#/$defs/perspective"},{"type":"null"}]},
         "colorKey": {"type":"string","minLength":1},
         "stageStatus": {"enum":["IDLE","PREPARING","SPEAKING"]},
-        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]}
+        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]},
+        "publicSummary": {"$ref":"#/$defs/publicSummary"},
+        "publicSpeech": {"$ref":"#/$defs/publicSpeech"}
       },
       "required": [
         "id",
@@ -193,7 +197,11 @@
         },
         {
           "if": {"required":["stageStatus"],"properties":{"stageStatus":{"const":"IDLE"}}},
-          "then": {"properties":{"publicFocus":{"type":"null"}}}
+          "then": {"properties":{"publicFocus":{"type":"null"},"publicSummary":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["stageStatus"],"properties":{"stageStatus":{"not":{"const":"SPEAKING"}}}},
+          "then": {"properties":{"publicSpeech":{"type":"null"}}}
         },
         {
           "if": {"required":["role"],"properties":{"role":{"const":"HOST"}}},
@@ -571,14 +579,20 @@
       "properties": {
         "participantId": {"$ref":"#/$defs/localId"},
         "stageStatus": {"enum":["IDLE","PREPARING","SPEAKING"]},
-        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]}
+        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]},
+        "publicSummary": {"$ref":"#/$defs/publicSummary"},
+        "publicSpeech": {"$ref":"#/$defs/publicSpeech"}
       },
       "required": ["participantId","stageStatus","publicFocus"],
       "additionalProperties": false,
       "allOf": [
         {
           "if": {"required":["stageStatus"],"properties":{"stageStatus":{"const":"IDLE"}}},
-          "then": {"properties":{"publicFocus":{"type":"null"}}}
+          "then": {"properties":{"publicFocus":{"type":"null"},"publicSummary":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["stageStatus"],"properties":{"stageStatus":{"not":{"const":"SPEAKING"}}}},
+          "then": {"properties":{"publicSpeech":{"type":"null"}}}
         }
       ]
     },

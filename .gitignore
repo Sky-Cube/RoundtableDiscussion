@@ -22,6 +22,9 @@ test-results/
 **/playwright/.cache/
 **/playwright/.auth/
 
+# 开发期间手动截取的界面截图，可随时重新截取
+frontend/screenshots/
+
 # SQLite 本地数据库与事务文件
 *.db
 *.db-journal
@@ -49,6 +52,11 @@ test-results/
 Thumbs.db
 Desktop.ini
 
+# 本地记忆与索引工具（memsearch）的运行时状态
+.memsearch/
+
 # 暂不上传的文件
 docs/AI圆桌*
+docs/evidence
+prompts/
 AI开发实习生远程作业-AI圆桌讨论WebAppMVP.md

@@ -132,9 +132,17 @@ function apply(snapshot, frame) {
     if (event === 'participant.status') {
         const participant = snapshot.participants.find((person) => person.id === payload.participantId);
         assert.equal(participant.role, 'EXPERT');
-        assert.ok(legalStage[participant.stageStatus].includes(payload.stageStatus));
+        const continuingSpeech = participant.stageStatus === 'SPEAKING' && payload.stageStatus === 'SPEAKING';
+        assert.ok(continuingSpeech || legalStage[participant.stageStatus].includes(payload.stageStatus));
+        if (payload.publicSpeech && participant.publicSpeech) {
+            assert.ok(payload.publicSpeech.startsWith(participant.publicSpeech));
+        }
         participant.stageStatus = payload.stageStatus;
         participant.publicFocus = payload.publicFocus;
+        for (const key of ['publicSummary', 'publicSpeech']) {
+            if (Object.hasOwn(payload, key)) participant[key] = payload[key];
+            else delete participant[key];
+        }
     }
     if (event === 'utterance.added') {
         const speaker = snapshot.participants.find((person) => person.id === payload.participantId);
@@ -198,6 +206,25 @@ for (const { frame, expected } of fixture.frameCases) {
     check('public', 'sseFrame', frame, expected !== 'invalid');
     if (expected === 'resnapshot') assert.notEqual(frame.id, String(frame.data.seq));
 }
+
+const publicSpeechFrame = structuredClone(fixture.frames.A[3]);
+Object.assign(publicSpeechFrame.data.payload, {
+    publicSummary: '公开说明实施条件。',
+    publicSpeech: 'A 可先采购完整方案',
+});
+check('public', 'sseFrame', publicSpeechFrame);
+for (const fields of [
+    { stageStatus: 'PREPARING' },
+    { stageStatus: 'IDLE', publicFocus: null, publicSpeech: null },
+    { publicSummary: '字'.repeat(81) },
+    { publicSpeech: '字'.repeat(121) },
+    { hiddenReasoning: '合成测试内容' },
+]) {
+    const frame = structuredClone(publicSpeechFrame);
+    Object.assign(frame.data.payload, fields);
+    check('public', 'sseFrame', frame, false);
+}
+console.log('PASS public summary and speech: 1 accepted, 5 rejected');
 
 const clients = {};
 const counts = { C1: 0, C2: 0 };

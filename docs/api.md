@@ -17,7 +17,7 @@
 
 - 请求体和常规响应使用 UTF-8 编码的 `application/json`，字段名使用 `camelCase`。SSE 握手成功使用 `text/event-stream`，每个事件的 `data` 仍为 JSON。SSE 握手失败按常规 JSON 响应处理。
 - 带 JSON 请求体的接口接收一个完整对象，拒绝重复键、未知字段和尾随文本。选填入参用省略表示。标注可空的响应字段始终返回，空值为 `null`。空集合用 `[]`。
-- 创建议题先按 NFC 规范化，将制表符和换行折叠为空格并去除首尾空白。拒绝 NUL、其余控制字符以及双向覆盖或隔离控制符。移除开头 BOM 和无语义的零宽空格 `U+200B`。长度按规范化后的 Unicode 码点数计算。 [输入规范](./AI圆桌演播厅-分阶段Prompt.md#输入脱敏与生成内容安全)
+- 创建议题先按 NFC 规范化，将制表符和换行折叠为空格并去除首尾空白。拒绝 NUL、其余控制字符以及双向覆盖或隔离控制符。移除开头 BOM 和无语义的零宽空格 `U+200B`。长度按规范化后的 Unicode 码点数计算。 [输入规范](../prompts/runtime.md#输入脱敏与生成内容安全)
 - 房间 ID 为小写带连字符 UUID。成员与观点 ID 为房间内标识。预设 `slug` 由小写字母、数字及连字符组成。
 - 事件序号、发言序号和来源游标均为 JSON 安全整数。事件与发言各自从 1 开始按房间递增。快照事件游标和来源游标可为 0。
 
@@ -982,6 +982,7 @@ HTTP `429` 示例。
 
 - `discussion.status` 的 `payload` 包含 `status`、`startedAt`、`endedAt`、`errorCode`。这些字段由服务端根据确认、收束、故障或总结生成，和状态变更同事务提交。终态事件位于其事务事件序列的最后。前端应用有效迁移后，在终态关闭连接。
 - `participant.status` 的 `payload` 包含 `participantId`（字符串）、`stageStatus`（`StageStatus`）和 `publicFocus`（`PublicFocus` 或 `null`）。R02 提供合法的 `focusCode`，服务端绑定房间内的专家，并按实际准备、获得调用槽、发言和清理阶段更新。前端用已知专家 ID 更新小窗。
+- 同一事件可带 `publicSummary`（1–80 个 Unicode 码点或 `null`），仅用于显示应用审核后发布的公开说明。待机时为空。可带 `publicSpeech`（1–120 个 Unicode 码点或 `null`），仅在 `SPEAKING` 时传送已审核、已提交的当前公开口播前缀。连续更新用同一角色的 `SPEAKING` 事件追加前缀并推进公开事件序号。小窗以 `utterance.added` 的完整正文定格，只有该事件追加实录。两个字段可省略，语义等同于 `null`。禁止从模型隐藏推理、报名候选或未审核 Token 填充这两个字段。
 - `utterance.added` 的 `payload` 为 `Utterance`。R03、R05、R06、R07 提供正文候选，R02、R06 提供应答目标候选。服务端校验本场引用、生成发言人、发言号、类型与时间，并与发言原子提交。前端核对发言人、连续序号及引用后追加纯文本实录。收到 `SUMMARY` 时在总结区显示主持对专家观点的归因整理。R07 的内部证据数组由服务端校验。
 - `insight.updated` 的 `payload` 包含 `insightStatus`（`FRESH` 或 `STALE`）、`insightsThroughUtteranceSeq`（非负整数）和 `insights`（`Insight[]`）。R04 提供观点和证据候选。服务端校验归属、原文和版本后生成观点 ID 及来源游标。前端按事件替换完整投影。收到 `STALE` 时，继续展示旧条目、证据和来源游标，并提示暂缓更新。
 
@@ -1075,6 +1076,7 @@ sequenceDiagram
 
 - 包含 `PresetParticipant` 的所有字段。
 - `stageStatus` 为嘉宾状态枚举，`publicFocus` 为关注标签枚举或 `null`。
+- 可选 `publicSummary` 与 `publicSpeech` 延续上方事件的取值，以便连接恢复时显示当前公开状态。
 
 **Utterance**
 
