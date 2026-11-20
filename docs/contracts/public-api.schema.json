@@ -1,0 +1,697 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Panel Studio HTTP 与 SSE 契约 v1",
+  "description": "按 api.md 使用对应的 $defs。请求定义使用拆出的 params、query、headers、body。SSE 先解析成 event、id、data 后校验。跨记录、游标取值和业务规则由应用检验。",
+  "$defs": {
+    "roomId": {"type":"string","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "localId": {"type":"string","minLength":1},
+    "slug": {"type":"string","pattern":"^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "utcTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "cursor": {"type":"integer","minimum":0,"maximum":9007199254740991},
+    "sequence": {"type":"integer","minimum":1,"maximum":9007199254740991},
+    "cursorText": {"type":"string","pattern":"^(0|[1-9][0-9]{0,15})$"},
+    "expertCount": {"type":"integer","minimum":2,"maximum":6},
+    "topic": {"type":"string","minLength":3,"maxLength":120},
+    "discussionGoal": {"enum":["EVALUATE","PROPOSE","SOLVE","EXPLORE"]},
+    "perspective": {"enum":["EVIDENCE","DELIVERY","COST","RISK","USER_IMPACT","GOVERNANCE"]},
+    "publicFocus": {"enum":["关注关键取舍","检验前提假设","关注证据依据","关注风险与边界条件","关注影响范围","关注实施路径"]},
+    "errorCode": {"enum":["B0001","B0006","B0002","B0003","B0004","B0005","B9001","B4001","B9002"]},
+    "discussionErrorCode": {"enum":["B0005","B9001","B9002"]},
+    "listDiscussionsRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "object",
+          "properties": {"status":{"const":"ACTIVE"}},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "createDiscussionRequest": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "object",
+          "properties": {"topic":{"$ref":"#/$defs/topic"},"expertCount":{"$ref":"#/$defs/expertCount"}},
+          "required": ["topic"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "additionalProperties": false
+    },
+    "listPresetsRequest": {"type":"object","properties":{},"required":[],"additionalProperties":false},
+    "copyPresetRequest": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "object",
+          "properties": {"slug":{"$ref":"#/$defs/slug"}},
+          "required": ["slug"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["params"],
+      "additionalProperties": false
+    },
+    "startDiscussionRequest": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "object",
+          "properties": {"id":{"$ref":"#/$defs/roomId"}},
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["params"],
+      "additionalProperties": false
+    },
+    "getDiscussionRequest": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "object",
+          "properties": {"id":{"$ref":"#/$defs/roomId"}},
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["params"],
+      "additionalProperties": false
+    },
+    "streamDiscussionRequest": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "object",
+          "properties": {"id":{"$ref":"#/$defs/roomId"}},
+          "required": ["id"],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {"after":{"anyOf":[{"type":"string"},{"type":"array","items":{"type":"string"},"minItems":2}]}},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {"lastEventId":{"$ref":"#/$defs/cursorText"}},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": ["params"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["headers"],"properties":{"headers":{"required":["lastEventId"]}}},
+          "else": {"properties":{"query":{"properties":{"after":{"$ref":"#/$defs/cursorText"}}}}}
+        }
+      ]
+    },
+    "discussionListItem": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref":"#/$defs/roomId"},
+        "topic": {"$ref":"#/$defs/topic"},
+        "status": {"enum":["RUNNING","SUMMARIZING"]},
+        "expertCount": {"$ref":"#/$defs/expertCount"},
+        "startedAt": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["id","topic","status","expertCount","startedAt"],
+      "additionalProperties": false
+    },
+    "presetParticipant": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref":"#/$defs/localId"},
+        "role": {"enum":["HOST","EXPERT"]},
+        "displayName": {"type":"string","minLength":2,"maxLength":20},
+        "profession": {"type":"string","minLength":2,"maxLength":32},
+        "title": {"type":"string","minLength":2,"maxLength":40},
+        "stance": {"type":["string","null"],"minLength":8,"maxLength":100},
+        "perspective": {"anyOf":[{"$ref":"#/$defs/perspective"},{"type":"null"}]},
+        "colorKey": {"type":"string","minLength":1}
+      },
+      "required": ["id","role","displayName","profession","title","stance","perspective","colorKey"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["role"],"properties":{"role":{"const":"HOST"}}},
+          "then": {"properties":{"stance":{"type":"null"},"perspective":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["role"],"properties":{"role":{"const":"EXPERT"}}},
+          "then": {"properties":{"stance":{"type":"string"},"perspective":{"$ref":"#/$defs/perspective"}}}
+        }
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref":"#/$defs/localId"},
+        "role": {"enum":["HOST","EXPERT"]},
+        "displayName": {"type":"string","minLength":2,"maxLength":20},
+        "profession": {"type":"string","minLength":2,"maxLength":32},
+        "title": {"type":"string","minLength":2,"maxLength":40},
+        "stance": {"type":["string","null"],"minLength":8,"maxLength":100},
+        "perspective": {"anyOf":[{"$ref":"#/$defs/perspective"},{"type":"null"}]},
+        "colorKey": {"type":"string","minLength":1},
+        "stageStatus": {"enum":["IDLE","PREPARING","SPEAKING"]},
+        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]}
+      },
+      "required": [
+        "id",
+        "role",
+        "displayName",
+        "profession",
+        "title",
+        "stance",
+        "perspective",
+        "colorKey",
+        "stageStatus",
+        "publicFocus"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["role"],"properties":{"role":{"const":"HOST"}}},
+          "then": {"properties":{"stance":{"type":"null"},"perspective":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["role"],"properties":{"role":{"const":"EXPERT"}}},
+          "then": {"properties":{"stance":{"type":"string"},"perspective":{"$ref":"#/$defs/perspective"}}}
+        },
+        {
+          "if": {"required":["stageStatus"],"properties":{"stageStatus":{"const":"IDLE"}}},
+          "then": {"properties":{"publicFocus":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["role"],"properties":{"role":{"const":"HOST"}}},
+          "then": {"properties":{"stageStatus":{"const":"IDLE"},"publicFocus":{"type":"null"}}}
+        }
+      ]
+    },
+    "preset": {
+      "type": "object",
+      "properties": {
+        "slug": {"$ref":"#/$defs/slug"},
+        "topic": {"$ref":"#/$defs/topic"},
+        "discussionGoal": {"$ref":"#/$defs/discussionGoal"},
+        "expertCount": {"$ref":"#/$defs/expertCount"},
+        "participants": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 7,
+          "prefixItems": [{"allOf":[{"$ref":"#/$defs/presetParticipant"},{"properties":{"role":{"const":"HOST"}}}]}],
+          "items": {"allOf":[{"$ref":"#/$defs/presetParticipant"},{"properties":{"role":{"const":"EXPERT"}}}]}
+        }
+      },
+      "required": ["slug","topic","discussionGoal","expertCount","participants"],
+      "additionalProperties": false
+    },
+    "utterance": {
+      "type": "object",
+      "properties": {
+        "seq": {"$ref":"#/$defs/sequence"},
+        "participantId": {"$ref":"#/$defs/localId"},
+        "kind": {"enum":["OPENING","EXPERT","FOLLOW_UP","BRIDGE","SUMMARY"]},
+        "content": {"type":"string","minLength":2,"maxLength":200},
+        "replyToUtteranceSeq": {"anyOf":[{"$ref":"#/$defs/sequence"},{"type":"null"}]},
+        "createdAt": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["seq","participantId","kind","content","replyToUtteranceSeq","createdAt"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"OPENING"}}},
+          "then": {"properties":{"content":{"type":"string","minLength":2,"maxLength":120}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"EXPERT"}}},
+          "then": {"properties":{"content":{"type":"string","minLength":2,"maxLength":120}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"FOLLOW_UP"}}},
+          "then": {"properties":{"content":{"type":"string","minLength":2,"maxLength":120}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"BRIDGE"}}},
+          "then": {"properties":{"content":{"type":"string","minLength":2,"maxLength":120}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"OPENING"}}},
+          "then": {"properties":{"replyToUtteranceSeq":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"SUMMARY"}}},
+          "then": {"properties":{"replyToUtteranceSeq":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["kind"],"properties":{"kind":{"const":"BRIDGE"}}},
+          "then": {"properties":{"replyToUtteranceSeq":{"$ref":"#/$defs/sequence"}}}
+        }
+      ]
+    },
+    "insight": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref":"#/$defs/localId"},
+        "kind": {"enum":["CONSENSUS","DISAGREEMENT"]},
+        "text": {"type":"string","minLength":4,"maxLength":80},
+        "evidenceUtteranceSeqs": {"type":"array","items":{"$ref":"#/$defs/sequence"},"minItems":2,"maxItems":4,"uniqueItems":true}
+      },
+      "required": ["id","kind","text","evidenceUtteranceSeqs"],
+      "additionalProperties": false
+    },
+    "discussionSnapshot": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref":"#/$defs/roomId"},
+        "topic": {"$ref":"#/$defs/topic"},
+        "expertCount": {"$ref":"#/$defs/expertCount"},
+        "discussionGoal": {"$ref":"#/$defs/discussionGoal"},
+        "status": {"enum":["DRAFT","RUNNING","SUMMARIZING","COMPLETED","FAILED"]},
+        "startedAt": {"anyOf":[{"$ref":"#/$defs/utcTime"},{"type":"null"}]},
+        "endedAt": {"anyOf":[{"$ref":"#/$defs/utcTime"},{"type":"null"}]},
+        "errorCode": {"anyOf":[{"$ref":"#/$defs/discussionErrorCode"},{"type":"null"}]},
+        "participants": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 7,
+          "prefixItems": [{"allOf":[{"$ref":"#/$defs/participant"},{"properties":{"role":{"const":"HOST"}}}]}],
+          "items": {"allOf":[{"$ref":"#/$defs/participant"},{"properties":{"role":{"const":"EXPERT"}}}]}
+        },
+        "transcript": {"type":"array","items":{"$ref":"#/$defs/utterance"},"minItems":0},
+        "insightStatus": {"enum":["PENDING","FRESH","STALE"]},
+        "insightsThroughUtteranceSeq": {"$ref":"#/$defs/cursor"},
+        "insights": {"type":"array","items":{"$ref":"#/$defs/insight"},"minItems":0,"maxItems":6},
+        "summary": {"anyOf":[{"type":"string","minLength":2,"maxLength":200},{"type":"null"}]},
+        "lastEventSeq": {"$ref":"#/$defs/cursor"}
+      },
+      "required": [
+        "id",
+        "topic",
+        "expertCount",
+        "discussionGoal",
+        "status",
+        "startedAt",
+        "endedAt",
+        "errorCode",
+        "participants",
+        "transcript",
+        "insightStatus",
+        "insightsThroughUtteranceSeq",
+        "insights",
+        "summary",
+        "lastEventSeq"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"DRAFT"}}},
+          "then": {"properties":{"startedAt":{"type":"null"},"endedAt":{"type":"null"},"errorCode":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"RUNNING"}}},
+          "then": {
+            "properties": {"startedAt":{"$ref":"#/$defs/utcTime"},"endedAt":{"type":"null"},"errorCode":{"type":"null"}}
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"SUMMARIZING"}}},
+          "then": {
+            "properties": {"startedAt":{"$ref":"#/$defs/utcTime"},"endedAt":{"type":"null"},"errorCode":{"type":"null"}}
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"COMPLETED"}}},
+          "then": {
+            "properties": {
+              "startedAt": {"$ref":"#/$defs/utcTime"},
+              "endedAt": {"$ref":"#/$defs/utcTime"},
+              "errorCode": {"type":"null"}
+            }
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"FAILED"}}},
+          "then": {
+            "properties": {
+              "startedAt": {"$ref":"#/$defs/utcTime"},
+              "endedAt": {"$ref":"#/$defs/utcTime"},
+              "errorCode": {"$ref":"#/$defs/discussionErrorCode"}
+            }
+          }
+        },
+        {
+          "if": {"required":["insightStatus"],"properties":{"insightStatus":{"const":"PENDING"}}},
+          "then": {"properties":{"insightsThroughUtteranceSeq":{"const":0},"insights":{"maxItems":0}}}
+        },
+        {
+          "if": {"required":["insightStatus"],"properties":{"insightStatus":{"const":"FRESH"}}},
+          "then": {"properties":{"insightsThroughUtteranceSeq":{"$ref":"#/$defs/sequence"}}}
+        },
+        {
+          "if": {
+            "required": ["insightsThroughUtteranceSeq"],
+            "properties": {"insightsThroughUtteranceSeq":{"const":0}}
+          },
+          "then": {"properties":{"insights":{"maxItems":0}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"DRAFT"}}},
+          "then": {
+            "properties": {
+              "lastEventSeq": {"const":0},
+              "insightStatus": {"const":"PENDING"},
+              "transcript": {"maxItems":0},
+              "participants": {"items":{"properties":{"stageStatus":{"const":"IDLE"}}}}
+            }
+          }
+        },
+        {
+          "if": {"required":["lastEventSeq"],"properties":{"lastEventSeq":{"const":0}}},
+          "then": {"properties":{"status":{"const":"DRAFT"}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"COMPLETED"}}},
+          "then": {"properties":{"summary":{"type":"string","minLength":2,"maxLength":200}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"DRAFT"}}},
+          "then": {"properties":{"summary":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"RUNNING"}}},
+          "then": {"properties":{"summary":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"SUMMARIZING"}}},
+          "then": {"properties":{"summary":{"type":"null"}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"FAILED"}}},
+          "then": {"properties":{"summary":{"type":"null"}}}
+        }
+      ]
+    },
+    "listDiscussionsResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"const":"OK"},
+        "message": {"type":"string","minLength":1},
+        "data": {"type":"array","items":{"$ref":"#/$defs/discussionListItem"},"minItems":0},
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "createDiscussionResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"const":"OK"},
+        "message": {"type":"string","minLength":1},
+        "data": {"allOf":[{"$ref":"#/$defs/discussionSnapshot"},{"properties":{"status":{"const":"DRAFT"}}}]},
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "copyPresetResponse": {"$ref":"#/$defs/createDiscussionResponse"},
+    "startDiscussionResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"const":"OK"},
+        "message": {"type":"string","minLength":1},
+        "data": {
+          "type": "object",
+          "properties": {"id":{"$ref":"#/$defs/roomId"},"status":{"enum":["RUNNING","SUMMARIZING"]}},
+          "required": ["id","status"],
+          "additionalProperties": false
+        },
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "getDiscussionResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"const":"OK"},
+        "message": {"type":"string","minLength":1},
+        "data": {"$ref":"#/$defs/discussionSnapshot"},
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "listPresetsResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"const":"OK"},
+        "message": {"type":"string","minLength":1},
+        "data": {"type":"array","items":{"$ref":"#/$defs/preset"},"minItems":5},
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "errorResponse": {
+      "type": "object",
+      "properties": {
+        "code": {"$ref":"#/$defs/errorCode"},
+        "message": {"type":"string","minLength":1},
+        "data": {"type":"null"},
+        "timestamp": {"$ref":"#/$defs/utcTime"}
+      },
+      "required": ["code","message","data","timestamp"],
+      "additionalProperties": false
+    },
+    "httpError": {
+      "type": "object",
+      "properties": {"status":{"enum":[400,403,404,409,429,500,502,503,504]},"body":{"$ref":"#/$defs/errorResponse"}},
+      "required": ["status","body"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":400}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0001"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":403}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0006"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":404}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0002"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":409}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0003"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":429}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0004"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":500}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B0005"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":502}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B9001"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":503}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B4001"}}}}}
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":504}}},
+          "then": {"properties":{"body":{"properties":{"code":{"const":"B9002"}}}}}
+        }
+      ]
+    },
+    "discussionStatusPayload": {
+      "type": "object",
+      "properties": {
+        "status": {"enum":["RUNNING","SUMMARIZING","COMPLETED","FAILED"]},
+        "startedAt": {"anyOf":[{"$ref":"#/$defs/utcTime"},{"type":"null"}]},
+        "endedAt": {"anyOf":[{"$ref":"#/$defs/utcTime"},{"type":"null"}]},
+        "errorCode": {"anyOf":[{"$ref":"#/$defs/discussionErrorCode"},{"type":"null"}]}
+      },
+      "required": ["status","startedAt","endedAt","errorCode"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"RUNNING"}}},
+          "then": {
+            "properties": {"startedAt":{"$ref":"#/$defs/utcTime"},"endedAt":{"type":"null"},"errorCode":{"type":"null"}}
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"SUMMARIZING"}}},
+          "then": {
+            "properties": {"startedAt":{"$ref":"#/$defs/utcTime"},"endedAt":{"type":"null"},"errorCode":{"type":"null"}}
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"COMPLETED"}}},
+          "then": {
+            "properties": {
+              "startedAt": {"$ref":"#/$defs/utcTime"},
+              "endedAt": {"$ref":"#/$defs/utcTime"},
+              "errorCode": {"type":"null"}
+            }
+          }
+        },
+        {
+          "if": {"required":["status"],"properties":{"status":{"const":"FAILED"}}},
+          "then": {
+            "properties": {
+              "startedAt": {"$ref":"#/$defs/utcTime"},
+              "endedAt": {"$ref":"#/$defs/utcTime"},
+              "errorCode": {"$ref":"#/$defs/discussionErrorCode"}
+            }
+          }
+        }
+      ]
+    },
+    "participantStatusPayload": {
+      "type": "object",
+      "properties": {
+        "participantId": {"$ref":"#/$defs/localId"},
+        "stageStatus": {"enum":["IDLE","PREPARING","SPEAKING"]},
+        "publicFocus": {"anyOf":[{"$ref":"#/$defs/publicFocus"},{"type":"null"}]}
+      },
+      "required": ["participantId","stageStatus","publicFocus"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["stageStatus"],"properties":{"stageStatus":{"const":"IDLE"}}},
+          "then": {"properties":{"publicFocus":{"type":"null"}}}
+        }
+      ]
+    },
+    "insightUpdatedPayload": {
+      "type": "object",
+      "properties": {
+        "insightStatus": {"enum":["FRESH","STALE"]},
+        "insightsThroughUtteranceSeq": {"$ref":"#/$defs/cursor"},
+        "insights": {"type":"array","items":{"$ref":"#/$defs/insight"},"minItems":0,"maxItems":6}
+      },
+      "required": ["insightStatus","insightsThroughUtteranceSeq","insights"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required":["insightStatus"],"properties":{"insightStatus":{"const":"FRESH"}}},
+          "then": {"properties":{"insightsThroughUtteranceSeq":{"$ref":"#/$defs/sequence"}}}
+        },
+        {
+          "if": {
+            "required": ["insightsThroughUtteranceSeq"],
+            "properties": {"insightsThroughUtteranceSeq":{"const":0}}
+          },
+          "then": {"properties":{"insights":{"maxItems":0}}}
+        }
+      ]
+    },
+    "discussionStatusPayloadFrame": {
+      "type": "object",
+      "properties": {
+        "event": {"const":"discussion.status"},
+        "id": {"allOf":[{"$ref":"#/$defs/cursorText"},{"not":{"const":"0"}}]},
+        "data": {
+          "type": "object",
+          "properties": {
+            "discussionId": {"$ref":"#/$defs/roomId"},
+            "seq": {"$ref":"#/$defs/sequence"},
+            "occurredAt": {"$ref":"#/$defs/utcTime"},
+            "payload": {"$ref":"#/$defs/discussionStatusPayload"}
+          },
+          "required": ["discussionId","seq","occurredAt","payload"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event","id","data"],
+      "additionalProperties": false
+    },
+    "participantStatusPayloadFrame": {
+      "type": "object",
+      "properties": {
+        "event": {"const":"participant.status"},
+        "id": {"allOf":[{"$ref":"#/$defs/cursorText"},{"not":{"const":"0"}}]},
+        "data": {
+          "type": "object",
+          "properties": {
+            "discussionId": {"$ref":"#/$defs/roomId"},
+            "seq": {"$ref":"#/$defs/sequence"},
+            "occurredAt": {"$ref":"#/$defs/utcTime"},
+            "payload": {"$ref":"#/$defs/participantStatusPayload"}
+          },
+          "required": ["discussionId","seq","occurredAt","payload"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event","id","data"],
+      "additionalProperties": false
+    },
+    "utteranceFrame": {
+      "type": "object",
+      "properties": {
+        "event": {"const":"utterance.added"},
+        "id": {"allOf":[{"$ref":"#/$defs/cursorText"},{"not":{"const":"0"}}]},
+        "data": {
+          "type": "object",
+          "properties": {
+            "discussionId": {"$ref":"#/$defs/roomId"},
+            "seq": {"$ref":"#/$defs/sequence"},
+            "occurredAt": {"$ref":"#/$defs/utcTime"},
+            "payload": {"$ref":"#/$defs/utterance"}
+          },
+          "required": ["discussionId","seq","occurredAt","payload"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event","id","data"],
+      "additionalProperties": false
+    },
+    "insightUpdatedPayloadFrame": {
+      "type": "object",
+      "properties": {
+        "event": {"const":"insight.updated"},
+        "id": {"allOf":[{"$ref":"#/$defs/cursorText"},{"not":{"const":"0"}}]},
+        "data": {
+          "type": "object",
+          "properties": {
+            "discussionId": {"$ref":"#/$defs/roomId"},
+            "seq": {"$ref":"#/$defs/sequence"},
+            "occurredAt": {"$ref":"#/$defs/utcTime"},
+            "payload": {"$ref":"#/$defs/insightUpdatedPayload"}
+          },
+          "required": ["discussionId","seq","occurredAt","payload"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event","id","data"],
+      "additionalProperties": false
+    },
+    "sseFrame": {
+      "oneOf": [
+        {"$ref":"#/$defs/discussionStatusPayloadFrame"},
+        {"$ref":"#/$defs/participantStatusPayloadFrame"},
+        {"$ref":"#/$defs/utteranceFrame"},
+        {"$ref":"#/$defs/insightUpdatedPayloadFrame"}
+      ]
+    }
+  }
+}

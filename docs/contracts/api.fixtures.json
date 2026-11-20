@@ -1,0 +1,2247 @@
+{
+  "description": "合成的联调数据。用 steps 的事务与交付顺序复现 A/B 房间，无需真实模型。HTTP 各 case 独立，snapshot 与事件场景共享房间 ID。",
+  "rooms": {"A":"00000000-0000-4000-8000-00000000000a","B":"00000000-0000-4000-8000-00000000000b"},
+  "http": [
+    {
+      "name": "大厅列出活跃房间",
+      "operation": "listDiscussions",
+      "request": {"query":{"status":"ACTIVE"}},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-00000000000a",
+              "topic": "中小团队应优先自研还是采购 AI 客服？",
+              "status": "RUNNING",
+              "expertCount": 2,
+              "startedAt": "2026-11-20T02:00:01Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-00000000000b",
+              "topic": "如何设计百人公司的混合办公规则？",
+              "status": "RUNNING",
+              "expertCount": 2,
+              "startedAt": "2026-11-20T02:00:01Z"
+            }
+          ],
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "大厅默认过滤且可为空",
+      "operation": "listDiscussions",
+      "request": {},
+      "response": {"status":200,"body":{"code":"OK","message":"成功","data":[],"timestamp":"2026-11-20T02:00:45Z"}}
+    },
+    {
+      "name": "大厅状态参数越界",
+      "operation": "listDiscussions",
+      "request": {"query":{"status":"COMPLETED"}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "按指定人数新建",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？","expertCount":2}},
+      "response": {
+        "status": 201,
+        "headers": {"location":"/api/v1/discussions/00000000-0000-4000-8000-00000000000a"},
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "topic": "中小团队应优先自研还是采购 AI 客服？",
+            "expertCount": 2,
+            "discussionGoal": "EVALUATE",
+            "status": "DRAFT",
+            "startedAt": null,
+            "endedAt": null,
+            "errorCode": null,
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "顾言",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "陈简",
+                "profession": "成本管理",
+                "title": "成本控制负责人",
+                "stance": "四周内交付时优先采购成熟方案",
+                "perspective": "COST",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "林昭",
+                "profession": "软件工程",
+                "title": "平台架构师",
+                "stance": "规则频繁变更时维护自研编排",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [],
+            "insightStatus": "PENDING",
+            "insightsThroughUtteranceSeq": 0,
+            "insights": [],
+            "summary": null,
+            "lastEventSeq": 0
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "新建省略人数时返回四位专家",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？"}},
+      "response": {
+        "status": 201,
+        "headers": {"location":"/api/v1/discussions/00000000-0000-4000-8000-00000000000a"},
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "topic": "中小团队应优先自研还是采购 AI 客服？",
+            "expertCount": 4,
+            "discussionGoal": "EVALUATE",
+            "status": "DRAFT",
+            "startedAt": null,
+            "endedAt": null,
+            "errorCode": null,
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "顾言",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "陈简",
+                "profession": "成本管理",
+                "title": "成本控制负责人",
+                "stance": "四周内交付时优先采购成熟方案",
+                "perspective": "COST",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "林昭",
+                "profession": "软件工程",
+                "title": "平台架构师",
+                "stance": "规则频繁变更时维护自研编排",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e3",
+                "role": "EXPERT",
+                "displayName": "赵岚",
+                "profession": "客服运营",
+                "title": "客户运营经理",
+                "stance": "小流量核验服务效果再逐步拓展",
+                "perspective": "EVIDENCE",
+                "colorKey": "amber",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e4",
+                "role": "EXPERT",
+                "displayName": "方钰",
+                "profession": "隐私工程",
+                "title": "隐私工程师",
+                "stance": "优先明确数据留存和迁移权利",
+                "perspective": "RISK",
+                "colorKey": "rose",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [],
+            "insightStatus": "PENDING",
+            "insightsThroughUtteranceSeq": 0,
+            "insights": [],
+            "summary": null,
+            "lastEventSeq": 0
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "人数显式空值",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？","expertCount":null}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "拒绝客户端自选讨论目标",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？","discussionGoal":"SOLVE"}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "上游输出失败",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？"}},
+      "response": {
+        "status": 502,
+        "body": {"code":"B9001","message":"暂时无法生成合格的专家阵容","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "上游超时",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？"}},
+      "response": {
+        "status": 504,
+        "body": {"code":"B9002","message":"模型请求超时","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "模型配置缺失",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？"}},
+      "response": {
+        "status": 503,
+        "body": {"code":"B4001","message":"模型服务尚未配置","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "未授权 Origin",
+      "operation": "createDiscussion",
+      "request": {"body":{"topic":"中小团队应优先自研还是采购 AI 客服？"}},
+      "response": {
+        "status": 403,
+        "body": {"code":"B0006","message":"请求来源不被允许","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "origin": "https://unapproved.invalid"
+    },
+    {
+      "name": "读取五条完整预设",
+      "operation": "listPresets",
+      "request": {},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": [
+            {
+              "slug": "ai-support-buy-build",
+              "topic": "中小团队应优先自研还是采购 AI 客服？",
+              "discussionGoal": "EVALUATE",
+              "expertCount": 4,
+              "participants": [
+                {
+                  "id": "host",
+                  "role": "HOST",
+                  "displayName": "顾言",
+                  "profession": "节目主持",
+                  "title": "圆桌主持人",
+                  "stance": null,
+                  "perspective": null,
+                  "colorKey": "violet"
+                },
+                {
+                  "id": "e1",
+                  "role": "EXPERT",
+                  "displayName": "陈简",
+                  "profession": "成本管理",
+                  "title": "成本控制负责人",
+                  "stance": "四周内交付时优先采购成熟方案",
+                  "perspective": "COST",
+                  "colorKey": "blue"
+                },
+                {
+                  "id": "e2",
+                  "role": "EXPERT",
+                  "displayName": "林昭",
+                  "profession": "软件工程",
+                  "title": "平台架构师",
+                  "stance": "规则频繁变更时维护自研编排",
+                  "perspective": "DELIVERY",
+                  "colorKey": "green"
+                },
+                {
+                  "id": "e3",
+                  "role": "EXPERT",
+                  "displayName": "赵岚",
+                  "profession": "客服运营",
+                  "title": "客户运营经理",
+                  "stance": "小流量核验服务效果再逐步拓展",
+                  "perspective": "EVIDENCE",
+                  "colorKey": "amber"
+                },
+                {
+                  "id": "e4",
+                  "role": "EXPERT",
+                  "displayName": "方钰",
+                  "profession": "隐私工程",
+                  "title": "隐私工程师",
+                  "stance": "优先明确数据留存和迁移权利",
+                  "perspective": "RISK",
+                  "colorKey": "rose"
+                }
+              ]
+            },
+            {
+              "slug": "city-curb-space",
+              "topic": "市中心路边停车位应改为配送与无障碍上下客区吗？",
+              "discussionGoal": "EVALUATE",
+              "expertCount": 4,
+              "participants": [
+                {
+                  "id": "host",
+                  "role": "HOST",
+                  "displayName": "贾晨",
+                  "profession": "节目主持",
+                  "title": "圆桌主持人",
+                  "stance": null,
+                  "perspective": null,
+                  "colorKey": "violet"
+                },
+                {
+                  "id": "e1",
+                  "role": "EXPERT",
+                  "displayName": "冯远",
+                  "profession": "交通规划",
+                  "title": "交通规划师",
+                  "stance": "按道路功能与通行时段分配路缘",
+                  "perspective": "GOVERNANCE",
+                  "colorKey": "blue"
+                },
+                {
+                  "id": "e2",
+                  "role": "EXPERT",
+                  "displayName": "唐立",
+                  "profession": "商户运营",
+                  "title": "沿街商户代表",
+                  "stance": "保留便于经营交付的短时停车",
+                  "perspective": "COST",
+                  "colorKey": "green"
+                },
+                {
+                  "id": "e3",
+                  "role": "EXPERT",
+                  "displayName": "马会",
+                  "profession": "城市配送",
+                  "title": "城市配送调度员",
+                  "stance": "先在配送高峰减少双排停车",
+                  "perspective": "DELIVERY",
+                  "colorKey": "amber"
+                },
+                {
+                  "id": "e4",
+                  "role": "EXPERT",
+                  "displayName": "秦宜",
+                  "profession": "无障碍出行",
+                  "title": "无障碍出行顾问",
+                  "stance": "确保上下客通道全程保持连续",
+                  "perspective": "USER_IMPACT",
+                  "colorKey": "rose"
+                }
+              ]
+            },
+            {
+              "slug": "hybrid-work-policy",
+              "topic": "如何设计百人公司的混合办公规则？",
+              "discussionGoal": "PROPOSE",
+              "expertCount": 4,
+              "participants": [
+                {
+                  "id": "host",
+                  "role": "HOST",
+                  "displayName": "许明",
+                  "profession": "节目主持",
+                  "title": "圆桌主持人",
+                  "stance": null,
+                  "perspective": null,
+                  "colorKey": "violet"
+                },
+                {
+                  "id": "e1",
+                  "role": "EXPERT",
+                  "displayName": "周弦",
+                  "profession": "人事管理",
+                  "title": "人力资源负责人",
+                  "stance": "由团队自行安排主要协作工作日",
+                  "perspective": "GOVERNANCE",
+                  "colorKey": "blue"
+                },
+                {
+                  "id": "e2",
+                  "role": "EXPERT",
+                  "displayName": "郑弋",
+                  "profession": "软件工程",
+                  "title": "工程团队经理",
+                  "stance": "异步优先并减少统一到岗要求",
+                  "perspective": "DELIVERY",
+                  "colorKey": "green"
+                },
+                {
+                  "id": "e3",
+                  "role": "EXPERT",
+                  "displayName": "姜平",
+                  "profession": "空间管理",
+                  "title": "设施运营主管",
+                  "stance": "固定到岗日期便于空间规划安排",
+                  "perspective": "COST",
+                  "colorKey": "amber"
+                },
+                {
+                  "id": "e4",
+                  "role": "EXPERT",
+                  "displayName": "苏晓",
+                  "profession": "无障碍研究",
+                  "title": "无障碍项目顾问",
+                  "stance": "按办公可达性设置可申请的例外",
+                  "perspective": "USER_IMPACT",
+                  "colorKey": "rose"
+                }
+              ]
+            },
+            {
+              "slug": "museum-ai-guide",
+              "topic": "博物馆应上线可追问的生成式 AI 导览吗？",
+              "discussionGoal": "EVALUATE",
+              "expertCount": 4,
+              "participants": [
+                {
+                  "id": "host",
+                  "role": "HOST",
+                  "displayName": "夏澄",
+                  "profession": "节目主持",
+                  "title": "圆桌主持人",
+                  "stance": null,
+                  "perspective": null,
+                  "colorKey": "violet"
+                },
+                {
+                  "id": "e1",
+                  "role": "EXPERT",
+                  "displayName": "任青",
+                  "profession": "展览策划",
+                  "title": "展览策展人",
+                  "stance": "严格限定可引用的馆藏证据材料",
+                  "perspective": "EVIDENCE",
+                  "colorKey": "blue"
+                },
+                {
+                  "id": "e2",
+                  "role": "EXPERT",
+                  "displayName": "田朗",
+                  "profession": "互动产品",
+                  "title": "互动产品经理",
+                  "stance": "先在少数热门展品开展单馆试点",
+                  "perspective": "DELIVERY",
+                  "colorKey": "green"
+                },
+                {
+                  "id": "e3",
+                  "role": "EXPERT",
+                  "displayName": "祝桦",
+                  "profession": "观众研究",
+                  "title": "观众研究员",
+                  "stance": "保留人工入口及低技术门槛导览",
+                  "perspective": "USER_IMPACT",
+                  "colorKey": "amber"
+                },
+                {
+                  "id": "e4",
+                  "role": "EXPERT",
+                  "displayName": "罗澜",
+                  "profession": "内容编辑",
+                  "title": "内容编辑主管",
+                  "stance": "可追溯材料充分后再开放追问",
+                  "perspective": "RISK",
+                  "colorKey": "rose"
+                }
+              ]
+            },
+            {
+              "slug": "school-ai-homework",
+              "topic": "中学应允许学生用生成式 AI 完成家庭作业吗？",
+              "discussionGoal": "EVALUATE",
+              "expertCount": 4,
+              "participants": [
+                {
+                  "id": "host",
+                  "role": "HOST",
+                  "displayName": "梁青",
+                  "profession": "节目主持",
+                  "title": "圆桌主持人",
+                  "stance": null,
+                  "perspective": null,
+                  "colorKey": "violet"
+                },
+                {
+                  "id": "e1",
+                  "role": "EXPERT",
+                  "displayName": "沈初",
+                  "profession": "语文教学",
+                  "title": "语文教师",
+                  "stance": "保留独立写作与同伴反馈作为评估依据",
+                  "perspective": "EVIDENCE",
+                  "colorKey": "blue"
+                },
+                {
+                  "id": "e2",
+                  "role": "EXPERT",
+                  "displayName": "白原",
+                  "profession": "数字素养",
+                  "title": "数字素养教师",
+                  "stance": "明确引用规则后允许可追溯的辅助",
+                  "perspective": "GOVERNANCE",
+                  "colorKey": "green"
+                },
+                {
+                  "id": "e3",
+                  "role": "EXPERT",
+                  "displayName": "叶秋",
+                  "profession": "教育研究",
+                  "title": "教育研究员",
+                  "stance": "按作业难度开展小规模分层试点",
+                  "perspective": "DELIVERY",
+                  "colorKey": "amber"
+                },
+                {
+                  "id": "e4",
+                  "role": "EXPERT",
+                  "displayName": "葛琴",
+                  "profession": "家校协作",
+                  "title": "家校协作主管",
+                  "stance": "处理设备不平等之后再开放工具",
+                  "perspective": "USER_IMPACT",
+                  "colorKey": "rose"
+                }
+              ]
+            }
+          ],
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "预设服务异常",
+      "operation": "listPresets",
+      "request": {},
+      "response": {
+        "status": 500,
+        "body": {"code":"B0005","message":"服务暂时不可用","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "复制保存预设目标",
+      "operation": "copyPreset",
+      "request": {"params":{"slug":"hybrid-work-policy"}},
+      "response": {
+        "status": 201,
+        "headers": {"location":"/api/v1/discussions/00000000-0000-4000-8000-00000000000c"},
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000c",
+            "topic": "如何设计百人公司的混合办公规则？",
+            "expertCount": 4,
+            "discussionGoal": "PROPOSE",
+            "status": "DRAFT",
+            "startedAt": null,
+            "endedAt": null,
+            "errorCode": null,
+            "participants": [
+              {
+                "id": "copy-host",
+                "role": "HOST",
+                "displayName": "许明",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "copy-e1",
+                "role": "EXPERT",
+                "displayName": "周弦",
+                "profession": "人事管理",
+                "title": "人力资源负责人",
+                "stance": "由团队自行安排主要协作工作日",
+                "perspective": "GOVERNANCE",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "copy-e2",
+                "role": "EXPERT",
+                "displayName": "郑弋",
+                "profession": "软件工程",
+                "title": "工程团队经理",
+                "stance": "异步优先并减少统一到岗要求",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "copy-e3",
+                "role": "EXPERT",
+                "displayName": "姜平",
+                "profession": "空间管理",
+                "title": "设施运营主管",
+                "stance": "固定到岗日期便于空间规划安排",
+                "perspective": "COST",
+                "colorKey": "amber",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "copy-e4",
+                "role": "EXPERT",
+                "displayName": "苏晓",
+                "profession": "无障碍研究",
+                "title": "无障碍项目顾问",
+                "stance": "按办公可达性设置可申请的例外",
+                "perspective": "USER_IMPACT",
+                "colorKey": "rose",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [],
+            "insightStatus": "PENDING",
+            "insightsThroughUtteranceSeq": 0,
+            "insights": [],
+            "summary": null,
+            "lastEventSeq": 0
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "预设不存在",
+      "operation": "copyPreset",
+      "request": {"params":{"slug":"absent-preset"}},
+      "response": {
+        "status": 404,
+        "body": {"code":"B0002","message":"资源不存在","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "首次确认",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 202,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {"id":"00000000-0000-4000-8000-00000000000a","status":"RUNNING"},
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "重复确认复用总结状态",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 202,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {"id":"00000000-0000-4000-8000-00000000000a","status":"SUMMARIZING"},
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "确认使用零字节请求体",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"body":{}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "确认终态",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 409,
+        "body": {"code":"B0003","message":"讨论已结束","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "执行容量已满",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 429,
+        "body": {"code":"B0004","message":"容量已满，请稍后重试","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "读取总结完成快照",
+      "operation": "getDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "topic": "中小团队应优先自研还是采购 AI 客服？",
+            "expertCount": 2,
+            "discussionGoal": "EVALUATE",
+            "status": "COMPLETED",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": "2026-11-20T02:00:20Z",
+            "errorCode": null,
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "顾言",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "陈简",
+                "profession": "成本管理",
+                "title": "成本控制负责人",
+                "stance": "四周内交付时优先采购成熟方案",
+                "perspective": "COST",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "林昭",
+                "profession": "软件工程",
+                "title": "平台架构师",
+                "stance": "规则频繁变更时维护自研编排",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [
+              {
+                "seq": 1,
+                "participantId": "host",
+                "kind": "OPENING",
+                "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:02Z"
+              },
+              {
+                "seq": 2,
+                "participantId": "e1",
+                "kind": "EXPERT",
+                "content": "A 可先采购完整方案，通过小流量验证首次解决率。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:05Z"
+              },
+              {
+                "seq": 3,
+                "participantId": "e2",
+                "kind": "EXPERT",
+                "content": "A 也应通过小流量验证首次解决率。核心编排可先自研。",
+                "replyToUtteranceSeq": 2,
+                "createdAt": "2026-11-20T02:00:10Z"
+              },
+              {
+                "seq": 4,
+                "participantId": "e1",
+                "kind": "EXPERT",
+                "content": "A 补充用规则迁移成本作为可退出的判断条件。",
+                "replyToUtteranceSeq": 3,
+                "createdAt": "2026-11-20T02:00:15Z"
+              },
+              {
+                "seq": 5,
+                "participantId": "host",
+                "kind": "SUMMARY",
+                "content": "两位发言专家都提出用小流量验证首次解决率。陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:19Z"
+              }
+            ],
+            "insightStatus": "STALE",
+            "insightsThroughUtteranceSeq": 3,
+            "insights": [{"id":"i1","kind":"CONSENSUS","text":"先用小流量验证首次解决率","evidenceUtteranceSeqs":[2,3]}],
+            "summary": "两位发言专家都提出用小流量验证首次解决率。陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。",
+            "lastEventSeq": 20
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "读取失败后快照",
+      "operation": "getDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000b"}},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "topic": "如何设计百人公司的混合办公规则？",
+            "expertCount": 2,
+            "discussionGoal": "PROPOSE",
+            "status": "FAILED",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": "2026-11-20T02:00:09Z",
+            "errorCode": "B9002",
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "许明",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "周弦",
+                "profession": "人事管理",
+                "title": "人力资源负责人",
+                "stance": "由团队自行安排主要协作工作日",
+                "perspective": "GOVERNANCE",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "郑弋",
+                "profession": "软件工程",
+                "title": "工程团队经理",
+                "stance": "异步优先并减少统一到岗要求",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [
+              {
+                "seq": 1,
+                "participantId": "host",
+                "kind": "OPENING",
+                "content": "本场讨论混合办公，请各方说明协作时段与到岗安排的依据。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:02Z"
+              },
+              {
+                "seq": 2,
+                "participantId": "e1",
+                "kind": "EXPERT",
+                "content": "B 可以先在两个小组试行协作日。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:05Z"
+              }
+            ],
+            "insightStatus": "FRESH",
+            "insightsThroughUtteranceSeq": 2,
+            "insights": [],
+            "summary": null,
+            "lastEventSeq": 9
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      }
+    },
+    {
+      "name": "读取不存在房间",
+      "operation": "getDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000c"}},
+      "response": {
+        "status": 404,
+        "body": {"code":"B0002","message":"资源不存在","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "快照必填空值字段缺失",
+      "operation": "getDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000b"}},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "topic": "如何设计百人公司的混合办公规则？",
+            "expertCount": 2,
+            "discussionGoal": "PROPOSE",
+            "status": "FAILED",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": "2026-11-20T02:00:09Z",
+            "errorCode": "B9002",
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "许明",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "周弦",
+                "profession": "人事管理",
+                "title": "人力资源负责人",
+                "stance": "由团队自行安排主要协作工作日",
+                "perspective": "GOVERNANCE",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "郑弋",
+                "profession": "软件工程",
+                "title": "工程团队经理",
+                "stance": "异步优先并减少统一到岗要求",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [
+              {
+                "seq": 1,
+                "participantId": "host",
+                "kind": "OPENING",
+                "content": "本场讨论混合办公，请各方说明协作时段与到岗安排的依据。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:02Z"
+              },
+              {
+                "seq": 2,
+                "participantId": "e1",
+                "kind": "EXPERT",
+                "content": "B 可以先在两个小组试行协作日。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:05Z"
+              }
+            ],
+            "insightStatus": "FRESH",
+            "insightsThroughUtteranceSeq": 2,
+            "insights": [],
+            "lastEventSeq": 9
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      },
+      "reject": "response"
+    },
+    {
+      "name": "快照泄露内部阶段和窗口",
+      "operation": "getDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 200,
+        "body": {
+          "code": "OK",
+          "message": "成功",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "topic": "中小团队应优先自研还是采购 AI 客服？",
+            "expertCount": 2,
+            "discussionGoal": "EVALUATE",
+            "status": "RUNNING",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": null,
+            "errorCode": null,
+            "participants": [
+              {
+                "id": "host",
+                "role": "HOST",
+                "displayName": "顾言",
+                "profession": "节目主持",
+                "title": "圆桌主持人",
+                "stance": null,
+                "perspective": null,
+                "colorKey": "violet",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e1",
+                "role": "EXPERT",
+                "displayName": "陈简",
+                "profession": "成本管理",
+                "title": "成本控制负责人",
+                "stance": "四周内交付时优先采购成熟方案",
+                "perspective": "COST",
+                "colorKey": "blue",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              },
+              {
+                "id": "e2",
+                "role": "EXPERT",
+                "displayName": "林昭",
+                "profession": "软件工程",
+                "title": "平台架构师",
+                "stance": "规则频繁变更时维护自研编排",
+                "perspective": "DELIVERY",
+                "colorKey": "green",
+                "stageStatus": "IDLE",
+                "publicFocus": null
+              }
+            ],
+            "transcript": [
+              {
+                "seq": 1,
+                "participantId": "host",
+                "kind": "OPENING",
+                "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+                "replyToUtteranceSeq": null,
+                "createdAt": "2026-11-20T02:00:02Z"
+              }
+            ],
+            "insightStatus": "PENDING",
+            "insightsThroughUtteranceSeq": 0,
+            "insights": [],
+            "summary": null,
+            "lastEventSeq": 2,
+            "phase": "COMPARE_CRITERIA",
+            "windowNumber": 1
+          },
+          "timestamp": "2026-11-20T02:00:45Z"
+        }
+      },
+      "reject": "response"
+    },
+    {
+      "name": "活动连接返回 SSE",
+      "operation": "streamDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"query":{"after":"2"}},
+      "response": {
+        "status": 200,
+        "headers": {"contentType":"text/event-stream; charset=utf-8","cacheControl":"no-cache, no-transform"}
+      }
+    },
+    {
+      "name": "合法头覆盖非法查询值",
+      "operation": "streamDiscussion",
+      "request": {
+        "params": {"id":"00000000-0000-4000-8000-00000000000a"},
+        "query": {"after":"abc"},
+        "headers": {"lastEventId":"4"}
+      },
+      "response": {
+        "status": 200,
+        "headers": {"contentType":"text/event-stream; charset=utf-8","cacheControl":"no-cache, no-transform"}
+      }
+    },
+    {
+      "name": "不合法头不回退查询值",
+      "operation": "streamDiscussion",
+      "request": {
+        "params": {"id":"00000000-0000-4000-8000-00000000000a"},
+        "query": {"after":"2"},
+        "headers": {"lastEventId":""}
+      },
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "无头时拒绝重复查询值",
+      "operation": "streamDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"query":{"after":["2","3"]}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "request"
+    },
+    {
+      "name": "游标超过房间已提交事件",
+      "operation": "streamDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"query":{"after":"999"}},
+      "response": {
+        "status": 400,
+        "body": {"code":"B0001","message":"请求参数无效","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "流订阅配额已满",
+      "operation": "streamDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"query":{"after":"2"}},
+      "response": {
+        "status": 429,
+        "body": {"code":"B0004","message":"容量已满，请稍后重试","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
+    },
+    {
+      "name": "终态游标已经追平",
+      "operation": "streamDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"},"headers":{"lastEventId":"20"}},
+      "response": {"status":204}
+    },
+    {
+      "name": "错误码不可替代 HTTP 状态",
+      "operation": "startDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 409,
+        "body": {"code":"B0004","message":"容量已满，请稍后重试","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      },
+      "reject": "response"
+    }
+  ],
+  "snapshots": {
+    "A0": {
+      "id": "00000000-0000-4000-8000-00000000000a",
+      "topic": "中小团队应优先自研还是采购 AI 客服？",
+      "expertCount": 2,
+      "discussionGoal": "EVALUATE",
+      "status": "DRAFT",
+      "startedAt": null,
+      "endedAt": null,
+      "errorCode": null,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "顾言",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "陈简",
+          "profession": "成本管理",
+          "title": "成本控制负责人",
+          "stance": "四周内交付时优先采购成熟方案",
+          "perspective": "COST",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "林昭",
+          "profession": "软件工程",
+          "title": "平台架构师",
+          "stance": "规则频繁变更时维护自研编排",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [],
+      "insightStatus": "PENDING",
+      "insightsThroughUtteranceSeq": 0,
+      "insights": [],
+      "summary": null,
+      "lastEventSeq": 0
+    },
+    "A2": {
+      "id": "00000000-0000-4000-8000-00000000000a",
+      "topic": "中小团队应优先自研还是采购 AI 客服？",
+      "expertCount": 2,
+      "discussionGoal": "EVALUATE",
+      "status": "RUNNING",
+      "startedAt": "2026-11-20T02:00:01Z",
+      "endedAt": null,
+      "errorCode": null,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "顾言",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "陈简",
+          "profession": "成本管理",
+          "title": "成本控制负责人",
+          "stance": "四周内交付时优先采购成熟方案",
+          "perspective": "COST",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "林昭",
+          "profession": "软件工程",
+          "title": "平台架构师",
+          "stance": "规则频繁变更时维护自研编排",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [
+        {
+          "seq": 1,
+          "participantId": "host",
+          "kind": "OPENING",
+          "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:02Z"
+        }
+      ],
+      "insightStatus": "PENDING",
+      "insightsThroughUtteranceSeq": 0,
+      "insights": [],
+      "summary": null,
+      "lastEventSeq": 2
+    },
+    "A17": {
+      "id": "00000000-0000-4000-8000-00000000000a",
+      "topic": "中小团队应优先自研还是采购 AI 客服？",
+      "expertCount": 2,
+      "discussionGoal": "EVALUATE",
+      "status": "RUNNING",
+      "startedAt": "2026-11-20T02:00:01Z",
+      "endedAt": null,
+      "errorCode": null,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "顾言",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "陈简",
+          "profession": "成本管理",
+          "title": "成本控制负责人",
+          "stance": "四周内交付时优先采购成熟方案",
+          "perspective": "COST",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "林昭",
+          "profession": "软件工程",
+          "title": "平台架构师",
+          "stance": "规则频繁变更时维护自研编排",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [
+        {
+          "seq": 1,
+          "participantId": "host",
+          "kind": "OPENING",
+          "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:02Z"
+        },
+        {
+          "seq": 2,
+          "participantId": "e1",
+          "kind": "EXPERT",
+          "content": "A 可先采购完整方案，通过小流量验证首次解决率。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:05Z"
+        },
+        {
+          "seq": 3,
+          "participantId": "e2",
+          "kind": "EXPERT",
+          "content": "A 也应通过小流量验证首次解决率。核心编排可先自研。",
+          "replyToUtteranceSeq": 2,
+          "createdAt": "2026-11-20T02:00:10Z"
+        },
+        {
+          "seq": 4,
+          "participantId": "e1",
+          "kind": "EXPERT",
+          "content": "A 补充用规则迁移成本作为可退出的判断条件。",
+          "replyToUtteranceSeq": 3,
+          "createdAt": "2026-11-20T02:00:15Z"
+        }
+      ],
+      "insightStatus": "STALE",
+      "insightsThroughUtteranceSeq": 3,
+      "insights": [{"id":"i1","kind":"CONSENSUS","text":"先用小流量验证首次解决率","evidenceUtteranceSeqs":[2,3]}],
+      "summary": null,
+      "lastEventSeq": 17
+    },
+    "A20": {
+      "id": "00000000-0000-4000-8000-00000000000a",
+      "topic": "中小团队应优先自研还是采购 AI 客服？",
+      "expertCount": 2,
+      "discussionGoal": "EVALUATE",
+      "status": "COMPLETED",
+      "startedAt": "2026-11-20T02:00:01Z",
+      "endedAt": "2026-11-20T02:00:20Z",
+      "errorCode": null,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "顾言",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "陈简",
+          "profession": "成本管理",
+          "title": "成本控制负责人",
+          "stance": "四周内交付时优先采购成熟方案",
+          "perspective": "COST",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "林昭",
+          "profession": "软件工程",
+          "title": "平台架构师",
+          "stance": "规则频繁变更时维护自研编排",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [
+        {
+          "seq": 1,
+          "participantId": "host",
+          "kind": "OPENING",
+          "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:02Z"
+        },
+        {
+          "seq": 2,
+          "participantId": "e1",
+          "kind": "EXPERT",
+          "content": "A 可先采购完整方案，通过小流量验证首次解决率。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:05Z"
+        },
+        {
+          "seq": 3,
+          "participantId": "e2",
+          "kind": "EXPERT",
+          "content": "A 也应通过小流量验证首次解决率。核心编排可先自研。",
+          "replyToUtteranceSeq": 2,
+          "createdAt": "2026-11-20T02:00:10Z"
+        },
+        {
+          "seq": 4,
+          "participantId": "e1",
+          "kind": "EXPERT",
+          "content": "A 补充用规则迁移成本作为可退出的判断条件。",
+          "replyToUtteranceSeq": 3,
+          "createdAt": "2026-11-20T02:00:15Z"
+        },
+        {
+          "seq": 5,
+          "participantId": "host",
+          "kind": "SUMMARY",
+          "content": "两位发言专家都提出用小流量验证首次解决率。陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:19Z"
+        }
+      ],
+      "insightStatus": "STALE",
+      "insightsThroughUtteranceSeq": 3,
+      "insights": [{"id":"i1","kind":"CONSENSUS","text":"先用小流量验证首次解决率","evidenceUtteranceSeqs":[2,3]}],
+      "summary": "两位发言专家都提出用小流量验证首次解决率。陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。",
+      "lastEventSeq": 20
+    },
+    "B2": {
+      "id": "00000000-0000-4000-8000-00000000000b",
+      "topic": "如何设计百人公司的混合办公规则？",
+      "expertCount": 2,
+      "discussionGoal": "PROPOSE",
+      "status": "RUNNING",
+      "startedAt": "2026-11-20T02:00:01Z",
+      "endedAt": null,
+      "errorCode": null,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "许明",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "周弦",
+          "profession": "人事管理",
+          "title": "人力资源负责人",
+          "stance": "由团队自行安排主要协作工作日",
+          "perspective": "GOVERNANCE",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "郑弋",
+          "profession": "软件工程",
+          "title": "工程团队经理",
+          "stance": "异步优先并减少统一到岗要求",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [
+        {
+          "seq": 1,
+          "participantId": "host",
+          "kind": "OPENING",
+          "content": "本场讨论混合办公，请各方说明协作时段与到岗安排的依据。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:02Z"
+        }
+      ],
+      "insightStatus": "PENDING",
+      "insightsThroughUtteranceSeq": 0,
+      "insights": [],
+      "summary": null,
+      "lastEventSeq": 2
+    },
+    "B9": {
+      "id": "00000000-0000-4000-8000-00000000000b",
+      "topic": "如何设计百人公司的混合办公规则？",
+      "expertCount": 2,
+      "discussionGoal": "PROPOSE",
+      "status": "FAILED",
+      "startedAt": "2026-11-20T02:00:01Z",
+      "endedAt": "2026-11-20T02:00:09Z",
+      "errorCode": "B9002",
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "许明",
+          "profession": "节目主持",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "周弦",
+          "profession": "人事管理",
+          "title": "人力资源负责人",
+          "stance": "由团队自行安排主要协作工作日",
+          "perspective": "GOVERNANCE",
+          "colorKey": "blue",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "郑弋",
+          "profession": "软件工程",
+          "title": "工程团队经理",
+          "stance": "异步优先并减少统一到岗要求",
+          "perspective": "DELIVERY",
+          "colorKey": "green",
+          "stageStatus": "IDLE",
+          "publicFocus": null
+        }
+      ],
+      "transcript": [
+        {
+          "seq": 1,
+          "participantId": "host",
+          "kind": "OPENING",
+          "content": "本场讨论混合办公，请各方说明协作时段与到岗安排的依据。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:02Z"
+        },
+        {
+          "seq": 2,
+          "participantId": "e1",
+          "kind": "EXPERT",
+          "content": "B 可以先在两个小组试行协作日。",
+          "replyToUtteranceSeq": null,
+          "createdAt": "2026-11-20T02:00:05Z"
+        }
+      ],
+      "insightStatus": "FRESH",
+      "insightsThroughUtteranceSeq": 2,
+      "insights": [],
+      "summary": null,
+      "lastEventSeq": 9
+    }
+  },
+  "frames": {
+    "A": [
+      {
+        "event": "discussion.status",
+        "id": "1",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 1,
+          "occurredAt": "2026-11-20T02:00:01Z",
+          "payload": {"status":"RUNNING","startedAt":"2026-11-20T02:00:01Z","endedAt":null,"errorCode":null}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "2",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 2,
+          "occurredAt": "2026-11-20T02:00:02Z",
+          "payload": {
+            "seq": 1,
+            "participantId": "host",
+            "kind": "OPENING",
+            "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+            "replyToUtteranceSeq": null,
+            "createdAt": "2026-11-20T02:00:02Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "3",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 3,
+          "occurredAt": "2026-11-20T02:00:03Z",
+          "payload": {"participantId":"e1","stageStatus":"PREPARING","publicFocus":"关注关键取舍"}
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "4",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 4,
+          "occurredAt": "2026-11-20T02:00:04Z",
+          "payload": {"participantId":"e1","stageStatus":"SPEAKING","publicFocus":"关注关键取舍"}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "5",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 5,
+          "occurredAt": "2026-11-20T02:00:05Z",
+          "payload": {
+            "seq": 2,
+            "participantId": "e1",
+            "kind": "EXPERT",
+            "content": "A 可先采购完整方案，通过小流量验证首次解决率。",
+            "replyToUtteranceSeq": null,
+            "createdAt": "2026-11-20T02:00:05Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "6",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 6,
+          "occurredAt": "2026-11-20T02:00:06Z",
+          "payload": {"participantId":"e1","stageStatus":"IDLE","publicFocus":null}
+        }
+      },
+      {
+        "event": "insight.updated",
+        "id": "7",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 7,
+          "occurredAt": "2026-11-20T02:00:07Z",
+          "payload": {"insightStatus":"FRESH","insightsThroughUtteranceSeq":2,"insights":[]}
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "8",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 8,
+          "occurredAt": "2026-11-20T02:00:08Z",
+          "payload": {"participantId":"e2","stageStatus":"PREPARING","publicFocus":"关注实施路径"}
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "9",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 9,
+          "occurredAt": "2026-11-20T02:00:09Z",
+          "payload": {"participantId":"e2","stageStatus":"SPEAKING","publicFocus":"关注实施路径"}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "10",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 10,
+          "occurredAt": "2026-11-20T02:00:10Z",
+          "payload": {
+            "seq": 3,
+            "participantId": "e2",
+            "kind": "EXPERT",
+            "content": "A 也应通过小流量验证首次解决率。核心编排可先自研。",
+            "replyToUtteranceSeq": 2,
+            "createdAt": "2026-11-20T02:00:10Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "11",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 11,
+          "occurredAt": "2026-11-20T02:00:11Z",
+          "payload": {"participantId":"e2","stageStatus":"IDLE","publicFocus":null}
+        }
+      },
+      {
+        "event": "insight.updated",
+        "id": "12",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 12,
+          "occurredAt": "2026-11-20T02:00:12Z",
+          "payload": {
+            "insightStatus": "FRESH",
+            "insightsThroughUtteranceSeq": 3,
+            "insights": [{"id":"i1","kind":"CONSENSUS","text":"先用小流量验证首次解决率","evidenceUtteranceSeqs":[2,3]}]
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "13",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 13,
+          "occurredAt": "2026-11-20T02:00:13Z",
+          "payload": {"participantId":"e1","stageStatus":"PREPARING","publicFocus":"关注风险与边界条件"}
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "14",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 14,
+          "occurredAt": "2026-11-20T02:00:14Z",
+          "payload": {"participantId":"e1","stageStatus":"SPEAKING","publicFocus":"关注风险与边界条件"}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "15",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 15,
+          "occurredAt": "2026-11-20T02:00:15Z",
+          "payload": {
+            "seq": 4,
+            "participantId": "e1",
+            "kind": "EXPERT",
+            "content": "A 补充用规则迁移成本作为可退出的判断条件。",
+            "replyToUtteranceSeq": 3,
+            "createdAt": "2026-11-20T02:00:15Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "16",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 16,
+          "occurredAt": "2026-11-20T02:00:16Z",
+          "payload": {"participantId":"e1","stageStatus":"IDLE","publicFocus":null}
+        }
+      },
+      {
+        "event": "insight.updated",
+        "id": "17",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 17,
+          "occurredAt": "2026-11-20T02:00:17Z",
+          "payload": {
+            "insightStatus": "STALE",
+            "insightsThroughUtteranceSeq": 3,
+            "insights": [{"id":"i1","kind":"CONSENSUS","text":"先用小流量验证首次解决率","evidenceUtteranceSeqs":[2,3]}]
+          }
+        }
+      },
+      {
+        "event": "discussion.status",
+        "id": "18",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 18,
+          "occurredAt": "2026-11-20T02:00:18Z",
+          "payload": {"status":"SUMMARIZING","startedAt":"2026-11-20T02:00:01Z","endedAt":null,"errorCode":null}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "19",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 19,
+          "occurredAt": "2026-11-20T02:00:19Z",
+          "payload": {
+            "seq": 5,
+            "participantId": "host",
+            "kind": "SUMMARY",
+            "content": "两位发言专家都提出用小流量验证首次解决率。陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。",
+            "replyToUtteranceSeq": null,
+            "createdAt": "2026-11-20T02:00:19Z"
+          }
+        }
+      },
+      {
+        "event": "discussion.status",
+        "id": "20",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 20,
+          "occurredAt": "2026-11-20T02:00:20Z",
+          "payload": {
+            "status": "COMPLETED",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": "2026-11-20T02:00:20Z",
+            "errorCode": null
+          }
+        }
+      }
+    ],
+    "B": [
+      {
+        "event": "discussion.status",
+        "id": "1",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 1,
+          "occurredAt": "2026-11-20T02:00:01Z",
+          "payload": {"status":"RUNNING","startedAt":"2026-11-20T02:00:01Z","endedAt":null,"errorCode":null}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "2",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 2,
+          "occurredAt": "2026-11-20T02:00:02Z",
+          "payload": {
+            "seq": 1,
+            "participantId": "host",
+            "kind": "OPENING",
+            "content": "本场讨论混合办公，请各方说明协作时段与到岗安排的依据。",
+            "replyToUtteranceSeq": null,
+            "createdAt": "2026-11-20T02:00:02Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "3",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 3,
+          "occurredAt": "2026-11-20T02:00:03Z",
+          "payload": {"participantId":"e1","stageStatus":"PREPARING","publicFocus":"关注实施路径"}
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "4",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 4,
+          "occurredAt": "2026-11-20T02:00:04Z",
+          "payload": {"participantId":"e1","stageStatus":"SPEAKING","publicFocus":"关注实施路径"}
+        }
+      },
+      {
+        "event": "utterance.added",
+        "id": "5",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 5,
+          "occurredAt": "2026-11-20T02:00:05Z",
+          "payload": {
+            "seq": 2,
+            "participantId": "e1",
+            "kind": "EXPERT",
+            "content": "B 可以先在两个小组试行协作日。",
+            "replyToUtteranceSeq": null,
+            "createdAt": "2026-11-20T02:00:05Z"
+          }
+        }
+      },
+      {
+        "event": "participant.status",
+        "id": "6",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 6,
+          "occurredAt": "2026-11-20T02:00:06Z",
+          "payload": {"participantId":"e1","stageStatus":"IDLE","publicFocus":null}
+        }
+      },
+      {
+        "event": "insight.updated",
+        "id": "7",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 7,
+          "occurredAt": "2026-11-20T02:00:07Z",
+          "payload": {"insightStatus":"FRESH","insightsThroughUtteranceSeq":2,"insights":[]}
+        }
+      },
+      {
+        "event": "discussion.status",
+        "id": "8",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 8,
+          "occurredAt": "2026-11-20T02:00:08Z",
+          "payload": {"status":"SUMMARIZING","startedAt":"2026-11-20T02:00:01Z","endedAt":null,"errorCode":null}
+        }
+      },
+      {
+        "event": "discussion.status",
+        "id": "9",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000b",
+          "seq": 9,
+          "occurredAt": "2026-11-20T02:00:09Z",
+          "payload": {
+            "status": "FAILED",
+            "startedAt": "2026-11-20T02:00:01Z",
+            "endedAt": "2026-11-20T02:00:09Z",
+            "errorCode": "B9002"
+          }
+        }
+      }
+    ]
+  },
+  "modelCases": [
+    {
+      "task": "R01",
+      "definition": "rosterOutput",
+      "candidate": {
+        "discussionGoal": "EVALUATE",
+        "participants": [
+          {
+            "role": "HOST",
+            "displayName": "顾言",
+            "profession": "节目主持",
+            "title": "圆桌主持人",
+            "stance": null,
+            "perspective": null
+          },
+          {
+            "role": "EXPERT",
+            "displayName": "陈简",
+            "profession": "成本管理",
+            "title": "成本控制负责人",
+            "stance": "四周内交付时优先采购成熟方案",
+            "perspective": "COST"
+          },
+          {
+            "role": "EXPERT",
+            "displayName": "林昭",
+            "profession": "软件工程",
+            "title": "平台架构师",
+            "stance": "规则频繁变更时维护自研编排",
+            "perspective": "DELIVERY"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "task": "R02",
+      "definition": "bidOutput",
+      "candidate": {"intent":"ADD","targetUtteranceSeq":1,"focusCode":"TRADE_OFF","proposedClaim":"用首次解决率判断试点效果。"},
+      "valid": true
+    },
+    {"task":"R03","definition":"utteranceOutput","candidate":{"sentences":["可以先验证首次解决率。"]},"valid":true},
+    {
+      "task": "R04",
+      "definition": "insightsOutput",
+      "candidate": {
+        "insights": [
+          {
+            "kind": "CONSENSUS",
+            "text": "先用小流量验证首次解决率",
+            "evidence": [{"utteranceSeq":2,"quote":"通过小流量验证首次解决率"},{"utteranceSeq":3,"quote":"通过小流量验证首次解决率"}]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "task": "R06",
+      "definition": "interventionOutput",
+      "candidate": {"sentences":["关于下一阶段，哪些材料可以用来核对迁移成本？"],"replyToUtteranceSeq":3},
+      "valid": true
+    },
+    {
+      "task": "R07",
+      "definition": "summaryOutput",
+      "candidate": {"sentences":["两位发言专家都提出用小流量验证首次解决率。","陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。"],"evidenceUtteranceSeqs":[2,3]},
+      "valid": true
+    },
+    {
+      "task": "R03",
+      "definition": "utteranceOutput",
+      "candidate": {"sentences":["可以先验证首次解决率。"],"roomId":"00000000-0000-4000-8000-00000000000b"},
+      "valid": false
+    },
+    {
+      "task": "R03",
+      "definition": "utteranceOutput",
+      "candidate": {"sentences":["可以先验证首次解决率。"],"status":"COMPLETED"},
+      "valid": false
+    },
+    {
+      "task": "R03",
+      "definition": "utteranceOutput",
+      "candidate": {"sentences":["可以先验证首次解决率。"],"occurredAt":"2026-11-20T02:00:20Z"},
+      "valid": false
+    },
+    {
+      "task": "R03",
+      "definition": "utteranceOutput",
+      "candidate": {"sentences":["可以先验证首次解决率。"],"lastEventSeq":19},
+      "valid": false
+    },
+    {
+      "task": "R04",
+      "definition": "insightsOutput",
+      "candidate": {"insights":[],"insightsThroughUtteranceSeq":99},
+      "valid": false
+    },
+    {
+      "task": "R06",
+      "definition": "interventionOutput",
+      "candidate": {
+        "sentences": ["关于下一阶段，哪些材料可以用来核对迁移成本？"],
+        "replyToUtteranceSeq": 3,
+        "discussionId": "00000000-0000-4000-8000-00000000000b"
+      },
+      "valid": false
+    },
+    {
+      "task": "R07",
+      "definition": "summaryOutput",
+      "candidate": {
+        "sentences": ["两位发言专家都提出用小流量验证首次解决率。","陈简倾向采购完整方案，林昭主张自研核心编排，双方对首版方案仍有分歧。"],
+        "evidenceUtteranceSeqs": [2,3],
+        "createdAt": "2026-11-20T02:00:20Z"
+      },
+      "valid": false
+    }
+  ],
+  "frameCases": [
+    {
+      "name": "事件信封拒绝额外阶段号",
+      "frame": {
+        "event": "discussion.status",
+        "id": "1",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 1,
+          "occurredAt": "2026-11-20T02:00:01Z",
+          "payload": {"status":"RUNNING","startedAt":"2026-11-20T02:00:01Z","endedAt":null,"errorCode":null},
+          "phase": 1
+        }
+      },
+      "expected": "invalid"
+    },
+    {
+      "name": "事件载荷拒绝候选内容字段",
+      "frame": {
+        "event": "participant.status",
+        "id": "3",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 3,
+          "occurredAt": "2026-11-20T02:00:03Z",
+          "payload": {"participantId":"e1","stageStatus":"PREPARING","publicFocus":"关注关键取舍","focusCode":"TRADE_OFF"}
+        }
+      },
+      "expected": "invalid"
+    },
+    {
+      "name": "公共事件 ID 与信封不一致",
+      "frame": {
+        "event": "participant.status",
+        "id": "4",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 3,
+          "occurredAt": "2026-11-20T02:00:03Z",
+          "payload": {"participantId":"e1","stageStatus":"PREPARING","publicFocus":"关注关键取舍"}
+        }
+      },
+      "expected": "resnapshot"
+    },
+    {
+      "name": "实录字段拒绝省略空回应",
+      "frame": {
+        "event": "utterance.added",
+        "id": "2",
+        "data": {
+          "discussionId": "00000000-0000-4000-8000-00000000000a",
+          "seq": 2,
+          "occurredAt": "2026-11-20T02:00:02Z",
+          "payload": {
+            "seq": 1,
+            "participantId": "host",
+            "kind": "OPENING",
+            "content": "本场讨论采购与自研，请各位说明你们的评估标准和证据出处。",
+            "createdAt": "2026-11-20T02:00:02Z"
+          }
+        }
+      },
+      "expected": "invalid"
+    }
+  ],
+  "steps": [
+    {"action":"commit","room":"A","seqs":[1]},
+    {"action":"commit","room":"A","seqs":[2]},
+    {"action":"commit","room":"B","seqs":[1]},
+    {"action":"commit","room":"B","seqs":[2]},
+    {"action":"snapshot","client":"C1","name":"A2","room":"A"},
+    {"action":"snapshot","client":"C2","name":"B2","room":"B"},
+    {"action":"commit","room":"A","seqs":[3]},
+    {"action":"subscribe","client":"C1","room":"A","after":"2","status":200,"delivered":[3]},
+    {"action":"subscribe","client":"C2","room":"B","after":"2","status":200,"delivered":[]},
+    {"action":"commit","room":"A","seqs":[4]},
+    {"action":"poll","client":"C1","delivered":[4]},
+    {"action":"duplicate","client":"C1","room":"A","seq":4},
+    {"action":"disconnect","client":"C1"},
+    {"action":"commit","room":"B","seqs":[3]},
+    {"action":"commit","room":"B","seqs":[4]},
+    {"action":"commit","room":"A","seqs":[5,6]},
+    {"action":"commit","room":"A","seqs":[7]},
+    {"action":"commit","room":"B","seqs":[5,6]},
+    {"action":"commit","room":"B","seqs":[7]},
+    {
+      "action": "subscribe",
+      "client": "C1",
+      "room": "A",
+      "after": "2",
+      "lastEventId": "4",
+      "status": 200,
+      "delivered": [5,6,7]
+    },
+    {"action":"poll","client":"C2","delivered":[3,4,5,6,7]},
+    {"action":"probeSubscribe","room":"A","after":"2","lastEventId":"999","status":400,"code":"B0001"},
+    {
+      "action": "probeSubscribe",
+      "room": "A",
+      "after": "7",
+      "activeTotal": 2,
+      "activeRoom": 1,
+      "limitTotal": 2,
+      "limitRoom": 2,
+      "status": 429,
+      "code": "B0004"
+    },
+    {
+      "action": "probeSubscribe",
+      "room": "B",
+      "after": "7",
+      "activeTotal": 2,
+      "activeRoom": 1,
+      "limitTotal": 16,
+      "limitRoom": 1,
+      "status": 429,
+      "code": "B0004"
+    },
+    {"action":"commit","room":"A","seqs":[8]},
+    {"action":"commit","room":"A","seqs":[9]},
+    {"action":"commit","room":"A","seqs":[10,11]},
+    {"action":"commit","room":"A","seqs":[12]},
+    {"action":"commit","room":"A","seqs":[13]},
+    {"action":"commit","room":"A","seqs":[14]},
+    {"action":"commit","room":"A","seqs":[15,16]},
+    {"action":"commit","room":"A","seqs":[17]},
+    {"action":"poll","client":"C1","delivered":[8,9,10,11,12,13,14,15,16,17]},
+    {"action":"snapshot","client":"C2","name":"A17","room":"A"},
+    {"action":"subscribe","client":"C2","room":"A","after":"17","status":200,"delivered":[]},
+    {"action":"late","client":"C2","room":"B","seq":7},
+    {"action":"late","client":"C2","room":"A","seq":17},
+    {"action":"foreign","client":"C2","room":"B","seq":7},
+    {"action":"commit","room":"B","seqs":[8]},
+    {"action":"commit","room":"B","seqs":[9]},
+    {"action":"snapshot","client":"C2","name":"B9","room":"B"},
+    {"action":"snapshot","client":"C2","name":"A17","room":"A"},
+    {"action":"subscribe","client":"C2","room":"A","after":"17","status":200,"delivered":[]},
+    {"action":"commit","room":"A","seqs":[18]},
+    {"action":"gap","client":"C2","room":"A","seq":19},
+    {"action":"commit","room":"A","seqs":[19,20],"firstRollBack":true},
+    {"action":"poll","client":"C1","delivered":[18,19,20]},
+    {"action":"snapshot","client":"C2","name":"A20","room":"A"},
+    {"action":"probeSubscribe","room":"A","lastEventId":"18","status":200,"delivered":[19,20]},
+    {"action":"probeSubscribe","room":"A","lastEventId":"9007199254740992","status":400,"code":"B0001"},
+    {"action":"probeSubscribe","room":"A","after":"20","status":204},
+    {"action":"probeSubscribe","room":"B","after":"9","status":204}
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Panel Studio 运行时模型输出契约 v2",
+  "description": "按任务引用对应的 $defs。R01 返回 discussionGoal 与阵容。业务层继续校验跨字段长度、房间归属、原文证据及调用状态。R08 复用原任务定义。",
+  "oneOf": [
+    { "$ref": "#/$defs/rosterOutput" },
+    { "$ref": "#/$defs/bidOutput" },
+    { "$ref": "#/$defs/utteranceOutput" },
+    { "$ref": "#/$defs/insightsOutput" },
+    { "$ref": "#/$defs/interventionOutput" },
+    { "$ref": "#/$defs/summaryOutput" }
+  ],
+  "$defs": {
+    "discussionGoal": {
+      "enum": ["EVALUATE", "PROPOSE", "SOLVE", "EXPLORE"]
+    },
+    "perspective": {
+      "enum": ["EVIDENCE", "DELIVERY", "COST", "RISK", "USER_IMPACT", "GOVERNANCE"]
+    },
+    "focusCode": {
+      "enum": ["TRADE_OFF", "ASSUMPTION", "EVIDENCE", "RISK", "IMPACT", "IMPLEMENTATION"]
+    },
+    "utteranceSeq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nullableUtteranceSeq": {
+      "anyOf": [{ "$ref": "#/$defs/utteranceSeq" }, { "type": "null" }]
+    },
+    "sentence": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 200,
+      "pattern": "^[^。！？\\r\\n]+[。！？]$"
+    },
+    "shortSentences": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "allOf": [{ "$ref": "#/$defs/sentence" }, { "maxLength": 120 }]
+      }
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "displayName", "profession", "title", "stance", "perspective"],
+      "properties": {
+        "role": { "enum": ["HOST", "EXPERT"] },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 20 },
+        "profession": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "stance": { "type": ["string", "null"], "minLength": 8, "maxLength": 100 },
+        "perspective": {
+          "anyOf": [{ "$ref": "#/$defs/perspective" }, { "type": "null" }]
+        }
+      },
+      "if": { "properties": { "role": { "const": "HOST" } } },
+      "then": { "properties": { "stance": { "type": "null" }, "perspective": { "type": "null" } } },
+      "else": {
+        "properties": { "stance": { "type": "string" }, "perspective": { "$ref": "#/$defs/perspective" } }
+      }
+    },
+    "rosterOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discussionGoal", "participants"],
+      "properties": {
+        "discussionGoal": { "$ref": "#/$defs/discussionGoal" },
+        "participants": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 7,
+          "prefixItems": [
+            {
+              "allOf": [
+                { "$ref": "#/$defs/participant" },
+                { "properties": { "role": { "const": "HOST" } } }
+              ]
+            }
+          ],
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/participant" },
+              { "properties": { "role": { "const": "EXPERT" } } }
+            ]
+          }
+        }
+      }
+    },
+    "bidOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent", "targetUtteranceSeq", "focusCode", "proposedClaim"],
+      "properties": {
+        "intent": { "enum": ["RAISE", "BUZZ", "ADD", "REBUT", "PASS"] },
+        "targetUtteranceSeq": { "$ref": "#/$defs/nullableUtteranceSeq" },
+        "focusCode": {
+          "anyOf": [{ "$ref": "#/$defs/focusCode" }, { "type": "null" }]
+        },
+        "proposedClaim": {
+          "anyOf": [
+            { "allOf": [{ "$ref": "#/$defs/sentence" }, { "maxLength": 80 }] },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "intent": { "enum": ["ADD", "REBUT"] } } },
+          "then": { "properties": { "targetUtteranceSeq": { "$ref": "#/$defs/utteranceSeq" } } },
+          "else": { "properties": { "targetUtteranceSeq": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "intent": { "const": "PASS" } } },
+          "then": {
+            "properties": {
+              "focusCode": { "type": "null" },
+              "proposedClaim": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "focusCode": { "$ref": "#/$defs/focusCode" },
+              "proposedClaim": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "utteranceOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sentences"],
+      "properties": {
+        "sentences": { "$ref": "#/$defs/shortSentences" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utteranceSeq", "quote"],
+      "properties": {
+        "utteranceSeq": { "$ref": "#/$defs/utteranceSeq" },
+        "quote": { "type": "string", "minLength": 4, "maxLength": 120 }
+      }
+    },
+    "insightsOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["insights"],
+      "properties": {
+        "insights": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "text", "evidence"],
+            "properties": {
+              "kind": { "enum": ["CONSENSUS", "DISAGREEMENT"] },
+              "text": { "type": "string", "minLength": 4, "maxLength": 80 },
+              "evidence": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 4,
+                "items": { "$ref": "#/$defs/evidence" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "interventionOutput": {
+      "type": "object",
+      "description": "主持用中立提问厘清分歧、追溯证据并推进阶段。转述观点时归因给原发言专家。",
+      "additionalProperties": false,
+      "required": ["sentences", "replyToUtteranceSeq"],
+      "properties": {
+        "sentences": { "$ref": "#/$defs/shortSentences" },
+        "replyToUtteranceSeq": { "$ref": "#/$defs/nullableUtteranceSeq" }
+      }
+    },
+    "summaryOutput": {
+      "type": "object",
+      "description": "主持归纳专家已公开表达的观点、共识范围、未决分歧及证据缺口。具体判断必须归因于专家发言，主持不裁决或添加自己的结论。",
+      "additionalProperties": false,
+      "required": ["sentences", "evidenceUtteranceSeqs"],
+      "properties": {
+        "sentences": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/sentence" }
+        },
+        "evidenceUtteranceSeqs": {
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/utteranceSeq" }
+        }
+      }
+    }
+  }
+}
