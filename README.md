@@ -9,6 +9,26 @@
 
 > 本 README 汇总了前后端说明与整体运行方式。更细的契约见 [PRD](./docs/PRD.md)、[API 文档](./docs/api.md)、[数据模型](./docs/schema.md)、[架构说明](./docs/architecture.md)、[测试文档](./docs/testing.md)。
 
+**页面预览：**
+
+首页：<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213558851.png" alt="image-20261121213558851" style="zoom: 33%;" />
+
+角色生成页面：
+
+<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213634150.png" alt="image-20261121213634150" style="zoom: 33%;" />
+
+演播厅讨论页面：
+
+<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213710785.png" alt="image-20261121213710785" style="zoom: 33%;" />
+
+讨论结果页面：
+
+<img src="D:\Work\RoundtableDiscussion\assets\image-20261121214756529.png" alt="image-20261121214756529" style="zoom:33%;" />
+
+后台管理页面：
+
+<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213813449.png" alt="image-20261121213813449" style="zoom:33%;" />
+
 ## 1. 功能一览
 
 | 模块 | 已实现能力 |
@@ -286,3 +306,5 @@ npm --prefix frontend run test:system
 | [交付与工作流](./docs/AI圆桌演播厅-交付与工作流.md) | Git 演进、Prompt 归档与提交包 |
 | [后端说明](./backend/README.md) | 后端运行、配置与内部结构 |
 | [前端说明](./frontend/README.md) | 前端页面、目录与交互约束 |
+
+注：未经作者许可不得转载、复用、二次分发。
