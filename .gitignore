@@ -57,14 +57,3 @@ logs/
 Thumbs.db
 Desktop.ini
 
-# 本地记忆与索引工具（memsearch）的运行时状态
-.memsearch/
-
-# 暂不上传的文件
-docs/AI圆桌*
-docs/evidence
-prompts/
-AI开发实习生远程作业-AI圆桌讨论WebAppMVP.md
-# 仅忽略根目录说明文件，保留 backend/frontend 等子目录 README
-/README.md
-开发过程与工作流说明.md

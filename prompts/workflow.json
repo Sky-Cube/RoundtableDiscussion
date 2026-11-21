@@ -1,0 +1,22 @@
+{
+  "EVALUATE": [
+    {"phase":"COMPARE_CRITERIA","maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["TRADE_OFF","IMPACT"]},
+    {"phase":"CHALLENGE_CONDITIONS","maxExpertTurns":4,"maxWindows":6,"preferredFocusCodes":["EVIDENCE","ASSUMPTION","RISK"]},
+    {"phase":"STATE_RECOMMENDATION","reviewBeforeSummary":true,"maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["TRADE_OFF","RISK"]}
+  ],
+  "PROPOSE": [
+    {"phase":"GENERATE_OPTIONS","maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["IMPLEMENTATION","IMPACT"]},
+    {"phase":"TEST_FEASIBILITY","maxExpertTurns":4,"maxWindows":6,"preferredFocusCodes":["RISK","TRADE_OFF","ASSUMPTION"]},
+    {"phase":"DEFINE_PILOT","reviewBeforeSummary":true,"maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["IMPLEMENTATION","EVIDENCE"]}
+  ],
+  "SOLVE": [
+    {"phase":"IDENTIFY_HYPOTHESES","maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["ASSUMPTION","EVIDENCE"]},
+    {"phase":"DESIGN_CHECKS","maxExpertTurns":4,"maxWindows":6,"preferredFocusCodes":["EVIDENCE","ASSUMPTION"]},
+    {"phase":"PRIORITIZE_ACTION","reviewBeforeSummary":true,"maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["RISK","IMPLEMENTATION"]}
+  ],
+  "EXPLORE": [
+    {"phase":"MAP_PERSPECTIVES","maxExpertTurns":3,"maxWindows":4,"preferredFocusCodes":["IMPACT","ASSUMPTION"]},
+    {"phase":"TEST_BOUNDARIES","maxExpertTurns":4,"maxWindows":6,"preferredFocusCodes":["EVIDENCE","RISK","TRADE_OFF"]},
+    {"phase":"WEIGH_IMPACT","reviewBeforeSummary":true,"preferredFocusCodes":["TRADE_OFF","EVIDENCE","IMPACT"],"maxExpertTurns":3,"maxWindows":4}
+  ]
+}
