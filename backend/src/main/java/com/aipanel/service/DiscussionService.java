@@ -143,6 +143,15 @@ public class DiscussionService {
         return new StartResultVO(id, "RUNNING");
     }
 
+    @Transactional
+    public void deleteInterrupted(String id) {
+        if (!discussions.deleteFailed(id)) {
+            requireRoom(id);
+            throw new ApiException(ApiErrorCode.B0003, "仅可删除已中断的讨论");
+        }
+        log.info("删除中断讨论 roomId={}", id);
+    }
+
     /** 读取房间行，供事件流与管理台判断状态。 */
     public Discussion requireRoom(String id) {
         return discussions.findById(id).orElseThrow(() -> new ApiException(ApiErrorCode.B0002));

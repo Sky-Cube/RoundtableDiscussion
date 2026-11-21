@@ -29,6 +29,7 @@ const operations = {
     copyPreset: [201, 400, 403, 404, 500],
     startDiscussion: [202, 400, 403, 404, 409, 429, 500, 503],
     getDiscussion: [200, 400, 404, 500],
+    deleteDiscussion: [204, 400, 403, 404, 409, 500],
     streamDiscussion: [200, 204, 400, 404, 429, 500],
 };
 
@@ -55,7 +56,7 @@ for (const { operation, request, response, reject, origin } of fixture.http) {
         if (response.status === 403) assert.ok(origin);
         continue;
     }
-    if (operation === 'streamDiscussion') {
+    if (operation === 'streamDiscussion' || operation === 'deleteDiscussion') {
         assert.equal(response.body, undefined);
         if (response.status === 200) {
             assert.deepEqual(response.headers, {

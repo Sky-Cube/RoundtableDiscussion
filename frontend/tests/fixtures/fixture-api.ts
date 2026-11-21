@@ -354,6 +354,13 @@ export function fixtureApi(): Plugin {
         const match = pathname.match(/^\/discussions\/([0-9a-f-]+)(\/start|\/events)?$/)
         const room = match && rooms.get(match[1])
         if (room && method === 'GET' && !match[2]) return send(response, 200, room)
+        if (room && method === 'DELETE' && !match[2]) {
+          if (room.status !== 'FAILED') return send(response, 409, null)
+          rooms.delete(room.id)
+          published.delete(room.id)
+          response.writeHead(204).end()
+          return
+        }
         if (room && method === 'GET' && match[2] === '/events') {
           const header = request.headers['last-event-id']
           const after = searchParams.getAll('after')

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
-import { goals, stageLabels, statusLabels } from '../api/discussions'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { discussions, goals, requestError, stageLabels, statusLabels } from '../api/discussions'
 import { seatColor } from '../components/studio/avatar-style'
 import RoundtableScene from '../components/studio/RoundtableScene.vue'
 import FinalResultModal from '../components/studio/FinalResultModal.vue'
@@ -9,7 +9,11 @@ import { useDiscussionSession } from '../composables/useDiscussionSession'
 import './studio.css'
 
 const roomId = String(useRoute().params.id)
+const router = useRouter()
 const { room, bubble, connection, error, retry } = useDiscussionSession(roomId)
+const deleting = ref(false)
+const deleteError = ref('')
+let deleteController: AbortController | undefined
 const members = computed(() => new Map(room.value?.participants.map(member => [member.id, member])))
 const panels = [
   { id: 'live', label: '现场' },
@@ -116,6 +120,24 @@ function openFinal() {
   finalOpen.value = true
 }
 
+async function deleteRoom() {
+  if (deleting.value || room.value?.status !== 'FAILED') return
+  if (!window.confirm(`永久删除「${room.value.topic}」及其实录和结论？`)) return
+  const controller = new AbortController()
+  deleteController = controller
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await discussions.deleteInterrupted(roomId, controller.signal)
+    if (!controller.signal.aborted) await router.replace({ name: 'lobby' })
+  } catch (cause) {
+    if (!controller.signal.aborted) deleteError.value = requestError(cause, '暂时无法删除讨论，请重试。')
+  } finally {
+    deleteController = undefined
+    deleting.value = false
+  }
+}
+
 watch(() => room.value?.transcript.length, async () => {
   const list = transcript.value
   if (!list || list.scrollHeight - list.scrollTop - list.clientHeight > 24) return
@@ -125,6 +147,7 @@ watch(() => room.value?.transcript.length, async () => {
 
 onBeforeUnmount(() => {
   finalOpen.value = false
+  deleteController?.abort()
 })
 </script>
 
@@ -161,7 +184,13 @@ onBeforeUnmount(() => {
           <span>{{ error || '实时连接已中断，仍可查看已收到的内容。' }}</span>
           <button class="text-button" type="button" @click="retry">恢复连接</button>
         </div>
-        <p v-if="room.status === 'FAILED'" class="studio-alert">讨论暂时无法继续，可查看已公开实录。</p>
+        <div v-if="room.status === 'FAILED'" class="studio-alert">
+          <span>讨论已中断，可查看已公开实录。</span>
+          <button type="button" class="text-button" :disabled="deleting" @click="deleteRoom">
+            {{ deleting ? '正在删除…' : '删除讨论' }}
+          </button>
+        </div>
+        <p v-if="deleteError" class="studio-alert" role="alert">{{ deleteError }}</p>
         <div v-if="room.status === 'DRAFT'" class="studio-alert">
           <span>本场讨论等待确认。</span>
           <RouterLink class="text-button" :to="{ name: 'roster', params: { id: roomId } }">查看待确认阵容</RouterLink>

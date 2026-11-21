@@ -48,6 +48,7 @@ java -jar backend/target/ai-panel-backend-exec.jar `
 | `GET` | `/api/v1/discussions?status=ACTIVE` | `200` 运行中/总结中房间摘要 | `400` |
 | `POST` | `/api/v1/discussions` | `201` DRAFT 快照 + `Location` | `400`、`500`、`502`、`503`、`504` |
 | `GET` | `/api/v1/discussions/{id}` | `200` 快照（含实录与结论） | `400`、`404` |
+| `DELETE` | `/api/v1/discussions/{id}` | `204` 删除中断房间及其记录 | `400`、`403`、`404`、`409` |
 | `POST` | `/api/v1/discussions/{id}/start` | `202` `{id,status}` | `400`、`404`、`409`、`429` |
 | `GET` | `/api/v1/discussions/{id}/events?after=` | `200` `text/event-stream`，回放后接实时；终态追平 `204` | `400`、`404`、`429` |
 | `GET` | `/api/v1/presets` | `200` 五条预设，按 slug 升序 | `500` |

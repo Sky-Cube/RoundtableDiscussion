@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.aipanel.config.FaultInjector;
+import com.aipanel.exception.ApiErrorCode;
 import com.aipanel.gateway.ModelGatewayException;
 import com.aipanel.model.Participant;
 import com.aipanel.model.Utterance;
@@ -106,6 +107,13 @@ public class DiscussionStateService {
             }
             publisher.publishStatus(id);
         });
+    }
+
+    /** 所有单例初始化后、Web 服务接收请求前，收尾上次进程遗留的房间。 */
+    public void recoverInterrupted() {
+        for (String id : discussions.findUnfinishedIds()) {
+            fail(id, ApiErrorCode.B0005.name());
+        }
     }
 
     public void fail(String id, String code) {

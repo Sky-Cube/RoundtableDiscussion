@@ -129,7 +129,10 @@ const detailTab = ref<DetailTab>('transcript')
 const detailLoading = ref(false)
 const detailError = ref('')
 const starting = ref('')
+const deleting = ref('')
+const deleteError = ref('')
 let detailController: AbortController | undefined
+let deleteController: AbortController | undefined
 
 async function toggleRow(row: AdminDiscussionRow) {
   if (selectedId.value === row.id) {
@@ -184,6 +187,27 @@ async function startRoom(row: AdminDiscussionRow) {
     loadError.value = requestError(error, '暂时无法开始这场讨论，请重试。')
   } finally {
     starting.value = ''
+  }
+}
+
+async function deleteRoom(row: AdminDiscussionRow) {
+  if (deleting.value || row.status !== 'FAILED') return
+  if (!window.confirm(`永久删除「${row.topic}」及其实录和结论？`)) return
+  const controller = new AbortController()
+  deleteController = controller
+  deleting.value = row.id
+  deleteError.value = ''
+  try {
+    await discussions.deleteInterrupted(row.id, controller.signal)
+    if (controller.signal.aborted) return
+    if (selectedId.value === row.id) closeDetail()
+    rooms.value = rooms.value.filter(room => room.id !== row.id)
+    await Promise.all([loadOverview(), loadRooms()])
+  } catch (error) {
+    if (!controller.signal.aborted) deleteError.value = requestError(error, '暂时无法删除讨论，请重试。')
+  } finally {
+    deleteController = undefined
+    deleting.value = ''
   }
 }
 
@@ -338,6 +362,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  deleteController?.abort()
   stopPolling()
   listController?.abort()
   detailController?.abort()
@@ -426,6 +451,7 @@ onBeforeUnmount(() => {
         </span>
       </form>
 
+      <p v-if="deleteError" class="admin-alert" role="alert">{{ deleteError }}</p>
       <p v-if="listError" class="admin-alert" role="alert">
         <span>{{ listError }}</span>
         <button type="button" class="admin-button admin-button--ghost" @click="loadRooms">重试</button>
@@ -482,6 +508,13 @@ onBeforeUnmount(() => {
                   :aria-expanded="selectedId === room.id"
                   @click.stop="toggleRow(room)"
                 >{{ selectedId === room.id ? '收起' : '查看' }}</button>
+                <button
+                  v-if="room.status === 'FAILED'"
+                  type="button"
+                  class="admin-button admin-button--ghost admin-button--small"
+                  :disabled="!!deleting"
+                  @click.stop="deleteRoom(room)"
+                >{{ deleting === room.id ? '正在删除…' : '删除讨论' }}</button>
               </td>
             </tr>
           </tbody>

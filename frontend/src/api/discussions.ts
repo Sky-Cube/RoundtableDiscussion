@@ -152,6 +152,10 @@ export const discussions = {
     new EventSource(`/api/v1/discussions/${encodeURIComponent(id)}/events?after=${after}`),
   start: (id: string, signal: AbortSignal) =>
     request<StartResult>(`/discussions/${encodeURIComponent(id)}/start`, signal, 'POST'),
+  async deleteInterrupted(id: string, signal: AbortSignal) {
+    const response = await fetch(`/api/v1/discussions/${encodeURIComponent(id)}`, { method: 'DELETE', signal })
+    if (response.status !== 204 && response.status !== 404) throw new ApiError(response.status)
+  },
 }
 /* ---------------- 后台管理接口 ---------------- */
 

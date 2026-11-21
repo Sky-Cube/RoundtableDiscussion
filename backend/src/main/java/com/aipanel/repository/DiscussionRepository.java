@@ -134,9 +134,24 @@ public class DiscussionRepository {
                 insightStatus, throughUtteranceSeq, id);
     }
 
-    /** 进程重启时把未收尾的房间标记为失败，保留已公开内容。 */
-    public List<Discussion> findUnfinished() {
-        return jdbcTemplate.query("SELECT " + COLUMNS + " FROM discussion "
-                + "WHERE status IN ('RUNNING','SUMMARIZING')", MAPPER);
+    public List<String> findUnfinishedIds() {
+        return jdbcTemplate.queryForList(
+                "SELECT id FROM discussion WHERE status IN ('RUNNING','SUMMARIZING')", String.class);
+    }
+
+    /** 在同一写事务内解除投影游标和外键引用，再删除已中断的房间。 */
+    public boolean deleteFailed(String id) {
+        if (jdbcTemplate.update("""
+                UPDATE discussion SET insights_through_utterance_seq = NULL, insight_status = 'PENDING'
+                WHERE id = ? AND status = 'FAILED'
+                """, id) != 1) {
+            return false;
+        }
+        jdbcTemplate.update("DELETE FROM insight WHERE discussion_id = ?", id);
+        jdbcTemplate.update("DELETE FROM discussion_event WHERE discussion_id = ?", id);
+        jdbcTemplate.update("DELETE FROM utterance WHERE discussion_id = ?", id);
+        jdbcTemplate.update("DELETE FROM participant WHERE discussion_id = ?", id);
+        jdbcTemplate.update("DELETE FROM discussion WHERE id = ?", id);
+        return true;
     }
 }

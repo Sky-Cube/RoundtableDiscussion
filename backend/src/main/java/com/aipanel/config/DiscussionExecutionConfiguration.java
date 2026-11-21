@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import com.aipanel.service.DiscussionStateService;
 import com.aipanel.service.RosterValidator;
 import com.aipanel.service.debate.DiscussionWorkflow;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,11 @@ public class DiscussionExecutionConfiguration {
     @Bean
     public Clock discussionClock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    public SmartInitializingSingleton interruptedDiscussionRecovery(DiscussionStateService state) {
+        return state::recoverInterrupted;
     }
 
     @Bean

@@ -113,6 +113,12 @@ public class DiscussionEventController {
             emitter.complete();
         } catch (IOException error) {
             // 传输中断由 Servlet 容器处理，连接配额由租约归还。
+        } catch (ApiException error) {
+            if (error.errorCode() == ApiErrorCode.B0002) {
+                emitter.complete();
+            } else {
+                emitter.completeWithError(error);
+            }
         } catch (RuntimeException error) {
             emitter.completeWithError(error);
         } catch (InterruptedException error) {

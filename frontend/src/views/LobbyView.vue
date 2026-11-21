@@ -19,6 +19,7 @@ const topicError = ref('')
 const creationError = ref<{ source: string | null; message: string }>()
 const creation = ref<{ source: string | null }>()
 let pending: AbortController | undefined
+let roomRefresh: number | undefined
 
 const heroSeats = [
   { initial: '主', color: seatColor('violet') },
@@ -28,9 +29,15 @@ const heroSeats = [
   { initial: '用', color: seatColor('teal') },
 ]
 
-onMounted(() => window.addEventListener('focus', rooms.load))
+onMounted(() => {
+  window.addEventListener('focus', rooms.load)
+  roomRefresh = window.setInterval(() => {
+    if (document.visibilityState === 'visible') void rooms.load()
+  }, 5_000)
+})
 onBeforeUnmount(() => {
   window.removeEventListener('focus', rooms.load)
+  window.clearInterval(roomRefresh)
   pending?.abort()
 })
 

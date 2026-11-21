@@ -174,7 +174,25 @@ describe('P04 房间会话与演播厅', () => {
     snapshots[roomA] = { ...fixture.snapshots.B9, id: roomA } as DiscussionSnapshot
     const { wrapper } = await open()
     expect(streams).toHaveLength(0)
-    expect(wrapper.text()).toContain('讨论暂时无法继续')
+    expect(wrapper.text()).toContain('讨论已中断')
     expect(wrapper.findAll('[data-speech]')).toHaveLength(fixture.snapshots.B9.transcript.length)
+  })
+
+  it('删除中断讨论前确认，成功后返回大厅', async () => {
+    snapshots[roomA] = { ...fixture.snapshots.B9, id: roomA }
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true)
+    vi.stubGlobal('confirm', confirm)
+    fetchMock.mockImplementation(async (path, options) => {
+      if (options?.method === 'DELETE') return new Response(null, { status: 204 })
+      return response(String(path).endsWith(roomA) ? snapshots[roomA] : [])
+    })
+    const { wrapper, router } = await open()
+    const remove = wrapper.get('.studio-alerts button')
+    await remove.trigger('click')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await remove.trigger('click')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1' + roomPath(roomA), expect.objectContaining({ method: 'DELETE' }))
+    expect(router.currentRoute.value.name).toBe('lobby')
   })
 })

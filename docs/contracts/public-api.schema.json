@@ -89,6 +89,7 @@
       "required": ["params"],
       "additionalProperties": false
     },
+    "deleteDiscussionRequest": {"$ref":"#/$defs/getDiscussionRequest"},
     "streamDiscussionRequest": {
       "type": "object",
       "properties": {

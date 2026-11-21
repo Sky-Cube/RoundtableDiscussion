@@ -1178,6 +1178,21 @@
         "body": {"code":429,"message":"容量已满，请稍后重试","data":null,"timestamp":"2026-11-20T02:00:45Z"}
       },
       "reject": "response"
+    },
+    {
+      "name": "删除已中断的讨论",
+      "operation": "deleteDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000b"}},
+      "response": {"status":204}
+    },
+    {
+      "name": "仍在进行的讨论拒绝删除",
+      "operation": "deleteDiscussion",
+      "request": {"params":{"id":"00000000-0000-4000-8000-00000000000a"}},
+      "response": {
+        "status": 409,
+        "body": {"code":409,"message":"仅可删除已中断的讨论","data":null,"timestamp":"2026-11-20T02:00:45Z"}
+      }
     }
   ],
   "snapshots": {
