@@ -202,6 +202,8 @@
       "additionalProperties": false,
       "required": ["intent", "targetUtteranceSeq", "focusCode", "proposedClaim"],
       "properties": {
+        "speechReady": { "type": "boolean" },
+        "searchReason": { "enum": ["COMPLEX_FACT", "FRONTIER", null] },
         "searchQuery": { "type": ["string", "null"], "maxLength": 100 },
         "searchPremise": { "type": ["string", "null"], "maxLength": 80 },
         "intent": { "enum": ["RAISE", "BUZZ", "ADD", "REBUT", "PASS"] },
@@ -226,6 +228,7 @@
           "if": { "properties": { "intent": { "const": "PASS" } } },
           "then": {
             "properties": {
+              "searchReason": { "type": "null" },
               "searchQuery": { "type": "null" },
               "searchPremise": { "type": "null" },
               "focusCode": { "type": "null" },

@@ -6,9 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import com.aipanel.config.PanelProperties;
@@ -25,6 +28,7 @@ import com.aipanel.service.debate.DiscussionWorkflow;
 import com.aipanel.service.debate.PhasePlan;
 import com.aipanel.service.debate.RuntimeCalls;
 import com.aipanel.service.debate.SpeechEvidenceService;
+import com.aipanel.service.debate.SpeechEvidenceService.ReadyBid;
 import com.fasterxml.jackson.databind.JsonNode;
 
 @Service
@@ -39,9 +43,11 @@ public class DiscussionOrchestrator {
     private final PanelProperties properties;
     private final Clock clock;
     private final DiscussionWorkflow workflow;
+    private final ThreadPoolTaskExecutor evidenceExecutor;
 
     public DiscussionOrchestrator(DiscussionStateService state, LiveInsightService insights, RuntimeCalls calls,
-            SpeechEvidenceService evidence, PanelProperties properties, Clock clock, DiscussionWorkflow workflow) {
+            SpeechEvidenceService evidence, PanelProperties properties, Clock clock, DiscussionWorkflow workflow,
+            @Qualifier("evidenceExecutor") ThreadPoolTaskExecutor evidenceExecutor) {
         this.state = state;
         this.insights = insights;
         this.calls = calls;
@@ -49,17 +55,23 @@ public class DiscussionOrchestrator {
         this.properties = properties;
         this.clock = clock;
         this.workflow = workflow;
+        this.evidenceExecutor = evidenceExecutor;
     }
 
     public void run(String discussionId) {
-        DiscussionBudget budget = new DiscussionBudget(clock);
+        PanelProperties.Timeouts timeouts = properties.gateway().timeouts();
+        DiscussionBudget budget = new DiscussionBudget(clock, timeouts.discussionSeconds(),
+                timeouts.summarySeconds());
         try {
             DiscussionContext context = state.snapshot(discussionId);
             if (!"RUNNING".equals(context.room().status())) {
                 return;
             }
             open(context, budget);
-            String stopReason = discuss(discussionId, workflow.forGoal(context.room().discussionGoal()), budget);
+            String stopReason;
+            try (var research = evidence.openResearch(evidenceExecutor)) {
+                stopReason = discuss(discussionId, workflow.forGoal(context.room().discussionGoal()), budget, research);
+            }
             LOG.info("进入总结 roomId={} reason={}", discussionId, stopReason);
             state.summarizing(discussionId);
             summarize(state.snapshot(discussionId), budget, stopReason);
@@ -92,7 +104,9 @@ public class DiscussionOrchestrator {
         pause();
     }
 
-    private String discuss(String id, List<PhasePlan> phases, DiscussionBudget budget) {
+    private String discuss(String id, List<PhasePlan> phases, DiscussionBudget budget,
+            SpeechEvidenceService.Research research) {
+        int emptyWindows = 0;
         int turns = 0;
         boolean followedUp = false;
         for (int phaseIndex = 0; phaseIndex < phases.size(); phaseIndex++) {
@@ -110,10 +124,8 @@ public class DiscussionOrchestrator {
                 if (!budget.openWindow(context.experts().size())) {
                     return "BUDGET";
                 }
-                List<Bid> bids;
                 try {
-                    boolean evidenceWindow = index == 0 && properties.gateway().evidenceEnabled();
-                    bids = bids(context, phase, budget, evidenceWindow, review);
+                    List<ReadyBid> bids = bids(context, phase, budget, research, review);
                     if (bids.isEmpty()) {
                         if (!clock.instant().isBefore(budget.deadline(false))) {
                             return "BUDGET";
@@ -121,12 +133,18 @@ public class DiscussionOrchestrator {
                         if (review) {
                             return "REVIEW_INCOMPLETE";
                         }
-                        throw new ModelGatewayException(ModelGatewayException.Kind.UPSTREAM_ERROR, "整窗报名失败");
+                        if (++emptyWindows >= 2) {
+                            return "BIDS_UNAVAILABLE";
+                        }
+                        continue;
                     }
-                    var candidates = review ? bids.stream().filter(bid -> isExpertReply(bid, context)).toList() : bids;
-                    var winner = BidArbitrator.select(phase, candidates, context.transcript(), evidenceWindow);
+                    emptyWindows = 0;
+                    var candidates = bids.stream().map(ReadyBid::bid)
+                            .filter(bid -> !review || isExpertReply(bid, context)).toList();
+                    var winner = BidArbitrator.select(phase, candidates, context.transcript());
                     if (winner.isPresent()) {
-                        if (speak(context, phase, winner.orElseThrow(), budget)) {
+                        ReadyBid ready = bids.stream().filter(item -> item.bid().equals(winner.get())).findFirst().orElseThrow();
+                        if (speak(context, phase, ready, budget)) {
                             phaseTurns++;
                             turns++;
                             insights.refresh(state.snapshot(id), phase.id(), budget);
@@ -161,67 +179,54 @@ public class DiscussionOrchestrator {
                 && context.expertLines().stream().anyMatch(line -> line.seq() == bid.target());
     }
 
-    private List<Bid> bids(DiscussionContext context, PhasePlan phase, DiscussionBudget budget, boolean evidenceWindow,
-            boolean review) {
+    private List<ReadyBid> bids(DiscussionContext context, PhasePlan phase, DiscussionBudget budget,
+            SpeechEvidenceService.Research research, boolean review) {
         Map<String, Object> base = context.base(phase.id());
-        base.put("evidenceWindow", evidenceWindow);
+        base.put("evidenceWindow", properties.gateway().evidenceEnabled());
         base.put("closingReview", review);
         Utterance question = moderatorQuestion(context);
         base.put("moderatorQuestion", question.content());
         List<Participant> experts = context.experts();
+        Map<String, Map<String, Object>> roles = new HashMap<>();
+        for (Participant expert : experts) {
+            var role = context.role(expert);
+            String premise = research.premise(expert.id());
+            if (premise != null) {
+                role.put("researchPremise", premise);
+            }
+            roles.put(expert.id(), role);
+        }
         ContextSlice slice = ContextSlice.fit(calls, RuntimeTask.R02, context, base, question.seq(),
-                experts.stream().map(context::role).toList());
-        Instant deadline = RuntimeCalls.earlier(budget.deadline(false), clock.instant().plusSeconds(20));
-        List<Supplier<Bid>> requests = experts.stream().<Supplier<Bid>>map(expert -> () -> {
-            Map<String, Object> input = new HashMap<>(slice.input());
-            input.put("expert", context.role(expert));
-            return calls.invoke(RuntimeTask.R02, input, budget, true, deadline,
-                    result -> bid(result, expert, slice.allowed()));
-        }).toList();
-        List<Bid> results = calls.collect(requests, deadline);
+                List.copyOf(roles.values()));
+        var timeouts = properties.gateway().timeouts();
+        Instant deadline = RuntimeCalls.earlier(budget.deadline(false), clock.instant()
+                .plusSeconds(2L * timeouts.utteranceSeconds()).plusMillis(timeouts.evidenceTimeoutMillis()));
+        long generation = research.nextWindow();
+        List<Supplier<CompletableFuture<ReadyBid>>> requests = experts.stream()
+                .<Supplier<CompletableFuture<ReadyBid>>>map(expert -> () -> {
+                    Map<String, Object> input = new HashMap<>(slice.input());
+                    input.put("expert", roles.get(expert.id()));
+                    Bid bid = calls.invoke(RuntimeTask.R02, input, budget, true, deadline,
+                            result -> bid(result, expert, slice.allowed()));
+                    return research.prepare(bid, context, budget, generation);
+                }).toList();
+        List<ReadyBid> results = calls.collect(requests, deadline, ready -> !"PASS".equals(ready.bid().intent())
+                && (!review || isExpertReply(ready.bid(), context)));
         if (results.size() < experts.size()) {
-            LOG.info("报名窗口部分或全部失败 roomId={} phase={} responses={} experts={}",
+            LOG.info("报名收窗 roomId={} phase={} responses={} experts={}",
                     context.room().id(), phase.id(), results.size(), experts.size());
         }
         return results;
     }
 
-    private boolean speak(DiscussionContext context, PhasePlan phase, Bid bid, DiscussionBudget budget) {
+    private boolean speak(DiscussionContext context, PhasePlan phase, ReadyBid ready, DiscussionBudget budget) {
+        Bid bid = ready.bid();
         Instant deadline = budget.deadline(false);
         String focus = PhasePlan.focusLabel(bid.focus());
         boolean committed = false;
         try {
             state.stage(context, bid.expert(), "PREPARING", focus, deadline);
-            Map<String, Object> base = context.base(phase.id());
-            base.put("expert", context.role(bid.expert()));
-            base.put("intent", bid.intent());
-            Utterance question = moderatorQuestion(context);
-            base.put("moderatorQuestion", question.content());
-            base.put("replyToUtteranceSeq", bid.target());
-            base.put("proposal", bid.claim());
-            base.put("evidencePremise", bid.verificationClaim());
-            base.put("externalEvidence", List.of());
-            ContextSlice slice = ContextSlice.fit(calls, RuntimeTask.R03, context, base, question.seq(), List.of());
-            Map<String, Object> input = new HashMap<>(slice.input());
-            var sources = evidence.find(bid, context, budget, deadline);
-            if (!sources.isEmpty()) {
-                var kept = new java.util.ArrayList<SpeechEvidenceService.Source>();
-                for (var source : sources) {
-                    var candidate = new java.util.ArrayList<>(kept);
-                    candidate.add(source);
-                    input.put("externalEvidence", List.copyOf(candidate));
-                    if (calls.fits(RuntimeTask.R03, input)) {
-                        kept.add(source);
-                    }
-                }
-                input.put("externalEvidence", List.copyOf(kept));
-            }
-            String text = calls.call(RuntimeTask.R03, input, budget, true, deadline,
-                    () -> state.stage(context, bid.expert(), "SPEAKING", focus, deadline), output -> {
-                        String value = speech(output, 120);
-                        rejectRepeat(value, slice.allowed());
-                        return value;
-                    });
+            String text = renderSpeech(context, phase, ready, budget, focus, deadline);
             state.speak(context, bid.expert(), "EXPERT", text, bid.target(), deadline);
             pause();
             committed = true;
@@ -233,6 +238,46 @@ public class DiscussionOrchestrator {
                 state.stage(context, bid.expert(), "IDLE", null, null);
             }
         }
+    }
+
+    private String renderSpeech(DiscussionContext context, PhasePlan phase, ReadyBid ready, DiscussionBudget budget,
+            String focus, Instant deadline) {
+        Bid bid = ready.bid();
+        if (bid.speechReady()) {
+            // 已通过报名句式、内容、重复与回复目标校验，获选后才发布公开台词。
+            state.stage(context, bid.expert(), "SPEAKING", focus, deadline);
+            return bid.claim();
+        }
+        Map<String, Object> base = context.base(phase.id());
+        base.put("expert", context.role(bid.expert()));
+        base.put("intent", bid.intent());
+        Utterance question = moderatorQuestion(context);
+        base.put("moderatorQuestion", question.content());
+        base.put("replyToUtteranceSeq", bid.target());
+        base.put("proposal", bid.claim());
+        base.put("evidencePremise", bid.verificationClaim());
+        base.put("externalEvidence", List.of());
+        ContextSlice slice = ContextSlice.fit(calls, RuntimeTask.R03, context, base, question.seq(), List.of());
+        Map<String, Object> input = new HashMap<>(slice.input());
+        var sources = ready.sources();
+        if (!sources.isEmpty()) {
+            var kept = new java.util.ArrayList<SpeechEvidenceService.Source>();
+            for (var source : sources) {
+                var candidate = new java.util.ArrayList<>(kept);
+                candidate.add(source);
+                input.put("externalEvidence", List.copyOf(candidate));
+                if (calls.fits(RuntimeTask.R03, input)) {
+                    kept.add(source);
+                }
+            }
+            input.put("externalEvidence", List.copyOf(kept));
+        }
+        return calls.call(RuntimeTask.R03, input, budget, true, deadline,
+                () -> state.stage(context, bid.expert(), "SPEAKING", focus, deadline), output -> {
+                    String value = speech(output, 120);
+                    rejectRepeat(value, slice.allowed());
+                    return value;
+                });
     }
 
     private void intervene(DiscussionContext context, PhasePlan phase, String kind, DiscussionBudget budget) {
@@ -320,7 +365,9 @@ public class DiscussionOrchestrator {
         String claim = json.path("proposedClaim").asText();
         rejectRepeat(claim, allowed);
         return new Bid(expert, intent, target, json.path("focusCode").asText(), claim,
-                json.path("searchQuery").asText(null), json.path("searchPremise").asText(null));
+                json.hasNonNull("searchReason") ? json.path("searchQuery").asText(null) : null,
+                json.path("searchPremise").asText(null), json.path("speechReady").asBoolean(false)
+                        && !json.hasNonNull("searchReason") && !json.hasNonNull("searchQuery"));
     }
 
     private static Integer target(JsonNode node, Map<Integer, Utterance> allowed) {

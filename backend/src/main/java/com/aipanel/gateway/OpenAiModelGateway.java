@@ -35,10 +35,10 @@ public class OpenAiModelGateway implements ModelGateway, RuntimeGateway {
 
     private static final Logger LOG = LoggerFactory.getLogger(OpenAiModelGateway.class);
     private static final int MAX_BODY = 128 * 1024;
-    private static final List<String> CODES = List.of("JSON_INVALID", "SHAPE_INVALID", "OUT_OF_RANGE", "INVALID_TARGET",
+    private static final List<String> CODES = List.of("OUTPUT_TRUNCATED", "JSON_INVALID", "SHAPE_INVALID", "OUT_OF_RANGE", "INVALID_TARGET",
             "INVALID_QUOTE", "INVALID_EVIDENCE", "UNSUPPORTED_CLAIM", "PERSPECTIVE_DUPLICATE", "LOW_QUALITY",
             "INVALID_SENTENCES");
-    private static final List<String> ROSTER_CODES = List.of("JSON_INVALID", "SHAPE_INVALID", "OUT_OF_RANGE",
+    private static final List<String> ROSTER_CODES = List.of("OUTPUT_TRUNCATED", "JSON_INVALID", "SHAPE_INVALID", "OUT_OF_RANGE",
             ValidationCodes.GOAL_MISSING, ValidationCodes.GOAL_INVALID, ValidationCodes.PARTICIPANT_COUNT,
             ValidationCodes.HOST_NOT_FIRST, ValidationCodes.HOST_COUNT, ValidationCodes.HOST_FIELD_INVALID,
             ValidationCodes.ROLE_INVALID, ValidationCodes.PERSPECTIVE_INVALID, ValidationCodes.PERSPECTIVE_DUPLICATE,
@@ -79,7 +79,8 @@ public class OpenAiModelGateway implements ModelGateway, RuntimeGateway {
     public String generateRoster(String topic, int expertCount, List<String> codes) {
         Map<String, Object> input = Map.of("topic", topic, "expertCount", expertCount, "allowedPerspectives",
                 RosterValidator.PERSPECTIVES);
-        String output = generate(RuntimeTask.R01, input, codes, clock.instant().plusSeconds(20));
+        String output = generate(RuntimeTask.R01, input, codes,
+                clock.instant().plusSeconds(config.timeouts().rosterSeconds()));
         guard.checkOutput(contract.parse(RuntimeTask.R01, output));
         return output;
     }
@@ -125,6 +126,10 @@ public class OpenAiModelGateway implements ModelGateway, RuntimeGateway {
             throw ModelGatewayException.timeout();
         }
         int estimate = estimate(task, input);
+        int outputLimit = task.outputTokens();
+        if (rawCodes.contains("OUTPUT_TRUNCATED")) {
+            outputLimit = Math.min(outputLimit * 2, config.contextWindow() - estimate - 256);
+        }
         if (estimate > inputLimit(task)) {
             throw new ModelGatewayException(Kind.CONTEXT_UNAVAILABLE, "模型上下文超限");
         }
@@ -141,10 +146,14 @@ public class OpenAiModelGateway implements ModelGateway, RuntimeGateway {
         try {
             String userContent = mapper.writeValueAsString(sanitize(mapper.valueToTree(data)));
             Map<String, Object> requestBody = new HashMap<>(Map.of(
-                    "model", config.model(), "max_tokens", task.outputTokens(),
+                    "model", config.model(), "max_tokens", outputLimit,
                     "messages", List.of(Map.of("role", "system", "content", system),
                             Map.of("role", "user", "content", userContent)),
                     "response_format", Map.of("type", "json_object")));
+            if (!"off".equalsIgnoreCase(config.reasoningEffort()) && !config.model().contains("deepseek")) {
+                // 圆桌保留快速推理，但推理 token 也占输出上限，需配合提高后的各任务上限。
+                requestBody.put("reasoning_effort", config.reasoningEffort());
+            }
             if ("deepseek-flash".equals(config.model())) {
                 // 模型默认将推理计入输出上限，结构化任务直接生成 JSON。
                 requestBody.put("thinking", Map.of("type", "disabled"));
@@ -176,7 +185,8 @@ public class OpenAiModelGateway implements ModelGateway, RuntimeGateway {
                         task, finishCategory, message.path("content").isTextual()
                                 && !message.path("content").asText().isBlank(),
                         reply.path("usage").path("completion_tokens").asInt(-1));
-                throw new ModelGatewayException(Kind.FORMAT_INVALID, "JSON_INVALID");
+                throw new ModelGatewayException(Kind.FORMAT_INVALID,
+                        "length".equals(finish) ? "OUTPUT_TRUNCATED" : "JSON_INVALID");
             }
             String content = message.path("content").asText();
             return content;

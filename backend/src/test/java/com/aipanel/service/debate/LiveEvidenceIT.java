@@ -26,7 +26,8 @@ class LiveEvidenceIT {
         var clock = Clock.systemUTC();
         var guard = new ContentGuard();
         var config = new PanelProperties.Gateway("real", System.getenv("PANEL_AI_BASE_URL"),
-                System.getenv("PANEL_AI_MODEL"), System.getenv("PANEL_AI_API_KEY"), null, null, 32768, null, true);
+                System.getenv("PANEL_AI_MODEL"), System.getenv("PANEL_AI_API_KEY"), null, null, 32768, null, true, null,
+                null);
         var properties = new PanelProperties(null, config, null, null);
         var contract = new RuntimeContract(mapper);
         var gateway = new OpenAiModelGateway(properties, contract, mapper, clock, guard, DiscussionWorkflow.load(null, mapper));
@@ -38,11 +39,11 @@ class LiveEvidenceIT {
         var pool = new ThreadPoolTaskExecutor();
         pool.initialize();
         try {
-            var calls = new RuntimeCalls(gateway, contract, guard, pool, clock);
+            var calls = new RuntimeCalls(gateway, contract, guard, pool, clock, properties);
             var service = new SpeechEvidenceService(properties, guard, clock, calls,
                     new CrossrefEvidenceLookup(mapper, guard, clock));
             var sources = service.find(bid, new DiscussionContext(room, List.of(), List.of(), List.of(), 0),
-                    new DiscussionBudget(clock), clock.instant().plusSeconds(60));
+                    new DiscussionBudget(clock, 600, 30), clock.instant().plusSeconds(60));
             assertThat(sources).anySatisfy(source -> {
                 assertThat(source.url()).startsWith("https://doi.org/10.21203/rs.3.rs-11342200/");
                 assertThat(source.excerpt()).containsIgnoringCase("base");

@@ -124,14 +124,15 @@ sequenceDiagram
     S->>EX: 派发 run(id)（容量满返回 429）
     S-->>FE: 202 {id,status}
 
-    O->>B: 新预算（360 秒 / 112 次调用 / 总结预留 2 次）
+    O->>B: 新预算（600 秒 / 112 次调用 / 总结预留 2 次）
     O->>M: R05 主持开场
     O->>DB: 开场发言 + participant.status(IDLE) 同事务
     loop 阶段 × 发言窗口
         O->>M: R02 全体专家基于同一版实录独立报名
         M-->>O: intent / focus / 目标发言 / 主张 / 查证关键词
+        Note over O,M: 仅复杂事实或前沿主张进入独立查证池，完成后候选就绪
         O->>O: BidArbitrator 裁决（过滤 PASS、意图权重、阶段关注点、缺席时长、连续发言让位）
-        O->>M: R03 获选专家发言（必要时先检索证据）
+        O->>M: 普通就绪台词直接发布，需扩写或整合证据时执行 R03
         O->>DB: utterance + participant.status 同事务
         O->>M: R04 增量提炼结论
         O->>DB: 结论 + 证据 + insight.updated 同事务
@@ -201,11 +202,11 @@ sequenceDiagram
 | 同时执行讨论数 | `2`（`panel.orchestration.capacity`） | `discussionExecutor` | 线程数与容量一致，队列满即 `AbortPolicy`，映射为 `429` |
 | 模型 I/O 并发 | `capacity × 6` | `modelExecutor` | 与专家上限相乘，避免报名窗口压垮进程 |
 | 单场模型调用总量 | `112` 次 | `DiscussionBudget` | 其中为总结保留 2 次 |
-| 单场总时长 | `360` 秒 | `DiscussionBudget` | 非总结任务提前 22 秒截止 |
-| 单次调用超时 | `10` 秒（R04 放宽到 `28` 秒） | `RuntimeCalls` | 超时按失败处理，允许一次契约修正 |
-| 报名窗口截止 | 窗口预算与 20 秒取早 | `RuntimeCalls.earlier` | 单个候选失败不影响其他候选 |
+| 单场总时长 | `600` 秒 | `DiscussionBudget` | 非总结任务提前一个收尾超时截止 |
+| 单次调用超时 | 发言 `35` 秒、R01 `50` 秒、R04 `45` 秒、R07 `30` 秒 | `RuntimeCalls`、`OpenAiModelGateway` | 均可由 `panel.gateway.timeouts.*` 覆盖 |
+| 报名窗口截止 | 两次报名尝试加后台查证时限，受全场预算限制 | `RuntimeCalls.earlier` | 首个合格候选就绪后最多再收集 350 毫秒 |
 | SSE 连接数 | 全局 `16`、单房间 `8` | `SseConnections` | 满额 `429/B0004`，断开、超时、错误都归还配额 |
-| 相邻阶段间隔 | `2500` 毫秒 | `panel.orchestration.stage-delay-millis` | 便于前端观察状态变化，测试可调低 |
+| 相邻阶段间隔 | `0` 毫秒 | `panel.orchestration.stage-delay-millis` | 默认随真实事件推进，可按需设置展示间隔 |
 | 专家发言上限 | `0`（按进展收尾） | `panel.orchestration.max-expert-utterances` | 显式正数时按总发言数截断 |
 
 ## 5. 失败与降级
@@ -213,7 +214,7 @@ sequenceDiagram
 | 失败点 | 处理方式 | 用户体验 |
 | --- | --- | --- |
 | 模型配置缺失 | 网关返回 `CONFIG_MISSING`，接口 `503/B4001` | 明确提示未配置模型 |
-| 模型超时 / 迟到回包 | `Kind.TIMEOUT` / `STALE_RESPONSE`，丢弃结果 | 讨论转 `FAILED`，已公开实录可回看 |
+| 模型超时 / 迟到回包 | `Kind.TIMEOUT` / `STALE_RESPONSE`，丢弃结果 | 普通窗口遇临时故障继续报名，连续两窗无有效回包时进入收尾。开场或收尾最终失败可回看实录 |
 | 报名窗口部分失败 | 只收集及时返回的候选，日志记录缺口 | 讨论继续，不因个别专家失败中断 |
 | 主持追问 / 串联失败 | 记录日志、席位复位 | 自动跳过该次介入 |
 | 提炼失败 | 保留旧结论并标记 `STALE` | 结论区显示旧版本与状态提示 |

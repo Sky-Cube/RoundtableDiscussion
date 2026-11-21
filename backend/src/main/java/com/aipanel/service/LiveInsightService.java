@@ -51,9 +51,13 @@ public class LiveInsightService {
     public void refresh(DiscussionContext context, String phase, DiscussionBudget budget) {
         List<Insight> projection;
         try {
-            ContextSlice slice = ContextSlice.fit(calls, RuntimeTask.R04, context, context.base(phase), null, List.of());
-            projection = calls.call(RuntimeTask.R04, slice.input(), budget, true, budget.deadline(false),
-                    () -> { }, json -> validate(json, slice.allowed()));
+            if (context.expertLines().stream().map(Utterance::participantId).distinct().limit(2).count() < 2) {
+                projection = List.of();
+            } else {
+                ContextSlice slice = ContextSlice.fit(calls, RuntimeTask.R04, context, context.base(phase), null, List.of());
+                projection = calls.call(RuntimeTask.R04, slice.input(), budget, true, budget.deadline(false),
+                        () -> { }, json -> validate(json, slice.allowed()));
+            }
         } catch (ModelGatewayException failure) {
             commit(context, null);
             return;

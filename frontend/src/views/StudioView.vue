@@ -2,7 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { discussions, goals, requestError, stageLabels, statusLabels } from '../api/discussions'
+import type { Participant } from '../api/discussions'
 import { seatColor } from '../components/studio/avatar-style'
+import { displayStageStatus, resolveSceneSpeech } from '../components/studio/scene-speech'
 import RoundtableScene from '../components/studio/RoundtableScene.vue'
 import FinalResultModal from '../components/studio/FinalResultModal.vue'
 import { useDiscussionSession } from '../composables/useDiscussionSession'
@@ -35,10 +37,15 @@ const connectionLabels = { connecting: '正在连接', connected: '实时连接'
 const stageEnglish = { IDLE: 'IDLE', PREPARING: 'PREPARING', SPEAKING: 'SPEAKING' } as const
 const stageStates = ['IDLE', 'PREPARING', 'SPEAKING'] as const
 const topicStatus = computed(() => room.value ? statusLabels[room.value.status] : '')
+const ended = computed(() => room.value?.status === 'COMPLETED' || room.value?.status === 'FAILED')
+// 与演播厅共用同一判定：气泡仍在展示时，发言人保持“发言中”
+const sceneSpeech = computed(() => resolveSceneSpeech(room.value?.participants ?? [], bubble.value, ended.value))
+const memberStage = (member: Participant) => displayStageStatus(member, sceneSpeech.value)
 const expertCount = computed(() => room.value?.participants.filter(member => member.role === 'EXPERT').length ?? 0)
-const speakingCount = computed(() => room.value?.participants.filter(member => member.stageStatus === 'SPEAKING').length ?? 0)
+const speakingCount = computed(() => room.value?.participants.filter(member => memberStage(member) === 'SPEAKING').length ?? 0)
 const activeMemberId = computed(() => room.value?.participants.find(member => member.stageStatus === 'SPEAKING')?.id
-  ?? room.value?.participants.find(member => member.stageStatus === 'PREPARING')?.id)
+  ?? room.value?.participants.find(member => member.stageStatus === 'PREPARING')?.id
+  ?? sceneSpeech.value?.participantId)
 const expertTranscript = computed(() => room.value?.transcript.filter(item => item.kind === 'EXPERT').length ?? 0)
 
 watch(() => room.value?.status, status => {
@@ -232,14 +239,14 @@ onBeforeUnmount(() => {
               v-for="member in room.participants"
               :key="member.id"
               :data-member="member.id"
-              :data-state="member.stageStatus"
+              :data-state="memberStage(member)"
               :style="{ '--seat-color': seatColor(member.colorKey) }"
             >
               <div class="member-status-heading">
                 <span class="member-color" aria-hidden="true"></span>
                 <span class="member-name">{{ member.displayName }}</span>
-                <span class="stage-label" :data-state="member.stageStatus">
-                  <i aria-hidden="true"></i>{{ stageEnglish[member.stageStatus] }} {{ stageLabels[member.stageStatus] }}
+                <span class="stage-label" :data-state="memberStage(member)">
+                  <i aria-hidden="true"></i>{{ stageEnglish[memberStage(member)] }} {{ stageLabels[memberStage(member)] }}
                 </span>
               </div>
               <p class="member-role">{{ member.role === 'HOST' ? '主持人' : '专家' }} · {{ member.profession }}</p>
@@ -256,7 +263,7 @@ onBeforeUnmount(() => {
           <RoundtableScene
             :participants="room.participants"
             :bubble="bubble"
-            :ended="room.status === 'COMPLETED' || room.status === 'FAILED'"
+            :ended="ended"
           />
         </section>
 

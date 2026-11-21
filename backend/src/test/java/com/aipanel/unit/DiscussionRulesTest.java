@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import com.aipanel.config.PanelProperties;
 import com.aipanel.gateway.ContentGuard;
 import com.aipanel.gateway.ModelGatewayException;
 import com.aipanel.gateway.RuntimeContract;
@@ -53,21 +54,42 @@ class DiscussionRulesTest {
     }
 
     @Test
-    void prefersSearchableClaimsInEvidenceWindowsButPreservesYield() throws Exception {
+    void ranksResearchAndOrdinaryBidsByTheSameSpeakingRules() throws Exception {
         var phase = DiscussionWorkflow.load(null, mapper).forGoal("EVALUATE").getFirst();
         Bid question = new Bid(expert("e1"), "REBUT", 1, "TRADE_OFF", "比较岗位录用率。");
         Bid empirical = new Bid(expert("e2"), "RAISE", null, "IMPACT", "比较应届生机会。", "graduate hiring");
         var bids = List.of(question, empirical);
-        assertThat(BidArbitrator.select(phase, bids, List.of(), true)).contains(empirical);
-        assertThat(BidArbitrator.select(phase, bids, List.of(), false)).contains(question);
-        assertThat(BidArbitrator.select(phase, bids, List.of(line(2, "e2", null), line(3, "e2", null)), true))
+        assertThat(BidArbitrator.select(phase, bids.reversed(), List.of())).contains(question);
+        assertThat(BidArbitrator.select(phase, bids, List.of())).contains(question);
+        assertThat(BidArbitrator.select(phase, bids, List.of(line(2, "e2", null), line(3, "e2", null))))
                 .contains(question);
+    }
+
+    @Test
+    void appliesTimeoutDefaultsAndKeepsExplicitOverrides() {
+        var defaults = new PanelProperties(null, null, null, null).gateway().timeouts();
+        assertThat(defaults.rosterSeconds()).isEqualTo(50);
+        assertThat(defaults.utteranceSeconds()).isEqualTo(35);
+        assertThat(defaults.insightSeconds()).isEqualTo(45);
+        assertThat(defaults.summarySeconds()).isEqualTo(30);
+        assertThat(defaults.discussionSeconds()).isEqualTo(600);
+        assertThat(defaults.evidenceTimeoutMillis()).isEqualTo(12000);
+
+        // 只覆盖部分项时，非正数继续使用默认值，避免手工构造配置漏项。
+        var custom = new PanelProperties.Timeouts(80, 0, 60, -1, 900, 0);
+        assertThat(custom.rosterSeconds()).isEqualTo(80);
+        assertThat(custom.utteranceSeconds()).isEqualTo(35);
+        assertThat(custom.insightSeconds()).isEqualTo(60);
+        assertThat(custom.summarySeconds()).isEqualTo(30);
+        assertThat(custom.discussionSeconds()).isEqualTo(900);
+        // 查证时限设为 0 即关闭查证。
+        assertThat(custom.evidenceTimeoutMillis()).isZero();
     }
 
     @Test
     void protectsCallAndTimeBudgetsForSummary() {
         MutableClock clock = new MutableClock();
-        var budget = new DiscussionBudget(clock);
+        var budget = new DiscussionBudget(clock, 600, 30);
         assertThat(budget.openWindow(6)).isTrue();
         for (int number = 0; number < 102; number++) {
             assertThat(budget.acquire(false, false)).isTrue();
@@ -77,7 +99,7 @@ class DiscussionRulesTest {
             assertThat(budget.acquire(false, true)).isTrue();
         }
         budget.closeWindow();
-        clock.move(338);
+        clock.move(570);
         assertThat(budget.openWindow(2)).isFalse();
         assertThat(budget.acquire(true, false)).isTrue();
         assertThat(budget.acquire(true, false)).isTrue();
@@ -88,13 +110,13 @@ class DiscussionRulesTest {
     @Test
     void discardsLateResponsesBeforeValidationAndKeepsSummaryBudget() throws Exception {
         MutableClock clock = new MutableClock();
-        DiscussionBudget budget = new DiscussionBudget(clock);
+        DiscussionBudget budget = new DiscussionBudget(clock, 600, 30);
         RuntimeGateway gateway = (task, input, codes, deadline) -> {
-            clock.move(339);
+            clock.move(571);
             return "{\"sentences\":[\"合成过期台词。\"]}";
         };
         RuntimeCalls calls = new RuntimeCalls(gateway, new RuntimeContract(mapper), new ContentGuard(),
-                new ThreadPoolTaskExecutor(), clock);
+                new ThreadPoolTaskExecutor(), clock, new PanelProperties(null, null, null, null));
         assertThatExceptionOfType(ModelGatewayException.class)
                 .isThrownBy(() -> calls.invoke(RuntimeTask.R05, Map.of(), budget, false, budget.deadline(false), json -> {
                     throw new AssertionError("过期回包不应进入业务校验");
@@ -114,8 +136,9 @@ class DiscussionRulesTest {
         try {
             RuntimeCalls calls = new RuntimeCalls((task, input, codes, deadline) -> {
                 throw new AssertionError("阶段写入失败不应进入模型调用");
-            }, new RuntimeContract(mapper), new ContentGuard(), executor, Clock.systemUTC());
-            DiscussionBudget budget = new DiscussionBudget(Clock.systemUTC());
+            }, new RuntimeContract(mapper), new ContentGuard(), executor, Clock.systemUTC(),
+                    new PanelProperties(null, null, null, null));
+            DiscussionBudget budget = new DiscussionBudget(Clock.systemUTC(), 600, 30);
             assertThatExceptionOfType(ModelGatewayException.class)
                     .isThrownBy(() -> calls.call(RuntimeTask.R05, Map.of(), budget, false,
                             Instant.now().plusSeconds(5), () -> {
@@ -149,7 +172,7 @@ class DiscussionRulesTest {
             }
         };
         RuntimeCalls calls = new RuntimeCalls(measured, new RuntimeContract(mapper), new ContentGuard(),
-                new ThreadPoolTaskExecutor(), Clock.systemUTC());
+                new ThreadPoolTaskExecutor(), Clock.systemUTC(), new PanelProperties(null, null, null, null));
         Discussion room = new Discussion("A", "合成议题", "EVALUATE", 2, "RUNNING", 0, "PENDING", null,
                 "2026-11-20T00:00:00Z", "2026-11-20T00:00:00Z", null, null);
         var transcript = List.of(host(1), line(2, "e1", null), line(3, "e2", null),

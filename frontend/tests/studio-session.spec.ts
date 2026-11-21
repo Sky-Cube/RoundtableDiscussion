@@ -156,6 +156,22 @@ describe('P04 房间会话与演播厅', () => {
     expect(wrapper.get('.member-status-list [data-member="e1"]').text()).not.toContain('仅公开讨论的实施条件。')
   })
 
+  it('气泡仍在演播厅展示时发言人保持发言中，状态不再一闪而过', async () => {
+    const { wrapper } = await open()
+    streams[0].frame(a(3))
+    streams[0].frame(a(4))
+    streams[0].frame(a(5))
+    streams[0].frame(a(6))
+    await flushPromises()
+    const card = wrapper.get('.member-status-list [data-member="e1"]')
+    // 服务端已在第 6 帧把 e1 恢复为待机，但气泡仍在展示，成员卡片应继续显示发言中
+    expect(card.attributes('data-state')).toBe('SPEAKING')
+    expect(card.text()).toContain('SPEAKING 发言中')
+    expect(wrapper.get('.studio-panel-sub').text()).toContain('1 位发言中')
+    expect(wrapper.get('.seat-speech-state').text()).toBe('发言中')
+    expect(wrapper.get('.scene-caption').text()).toContain('正在发言')
+  })
+
   it('区分有效空结论、暂缓、恢复与终态', async () => {
     const { wrapper } = await open()
     for (const frame of fixture.frames.A.slice(2, 7)) streams[0].frame(frame)

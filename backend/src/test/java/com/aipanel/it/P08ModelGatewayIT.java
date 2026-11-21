@@ -72,7 +72,7 @@ class P08ModelGatewayIT {
         });
         server.start();
         settings = new Gateway("real", "http://127.0.0.1:" + server.getAddress().getPort() + "/v1", "fake-model",
-                "fake-key", null, "v2.1", 8192, Map.of(), false);
+                "fake-key", null, "v2.1", 8192, Map.of(), false, null, null);
         pool = new ThreadPoolTaskExecutor();
         pool.initialize();
     }
@@ -107,11 +107,21 @@ class P08ModelGatewayIT {
     @Test
     void disablesDeepSeekFlashThinkingForShortStructuredOutput() {
         var config = new Gateway("real", settings.baseUrl(), "deepseek-flash", settings.apiKey(),
-                null, "v2.1", 8192, Map.of(), false);
+                null, "v2.1", 8192, Map.of(), false, null, null);
         replies.add(ok("{\"sentences\":[\"请各位说明比较标准。\"]}"));
         run(client(config), input("EVALUATE", "公开测试议题"));
         JsonNode sent = requests.remove();
         assertThat(sent.at("/thinking/type").asText()).isEqualTo("disabled");
+        assertThat(sent.has("reasoning_effort")).isFalse();
+        assertThat(sent.path("max_tokens").asInt()).isEqualTo(RuntimeTask.R05.outputTokens());
+    }
+
+    @Test
+    void sendsFastReasoningEffortForOtherModels() {
+        replies.add(ok("{\"sentences\":[\"请各位说明比较标准。\"]}"));
+        run(client(settings), input("EVALUATE", "公开测试议题"));
+        JsonNode sent = requests.remove();
+        assertThat(sent.path("reasoning_effort").asText()).isEqualTo("low");
         assertThat(sent.path("max_tokens").asInt()).isEqualTo(RuntimeTask.R05.outputTokens());
     }
 
@@ -122,6 +132,21 @@ class P08ModelGatewayIT {
         String result = gateway.generateRoster("客服应先自研还是采购", 2, List.of());
         assertThat(contract.parse(RuntimeTask.R01, result).path("discussionGoal").asText()).isEqualTo("EVALUATE");
         assertThat(requests).hasSize(1);
+    }
+
+    @Test
+    void givesTruncatedBidMoreOutputSpaceOnItsSingleRetry() {
+        replies.add(new Reply(200, "{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"{\"}}]}", 0));
+        replies.add(ok("{\"intent\":\"PASS\",\"targetUtteranceSeq\":null,\"focusCode\":null,\"proposedClaim\":null}"));
+        var properties = new PanelProperties(null, settings, null, null);
+        var calls = new RuntimeCalls(client(settings), contract, guard, pool, clock, properties);
+        var budget = new DiscussionBudget(clock, 600, 30);
+        var result = calls.invoke(RuntimeTask.R02, input("EVALUATE", "测试报名截断"), budget, false,
+                budget.deadline(false), node -> node.path("intent").asText());
+        assertThat(result).isEqualTo("PASS");
+        assertThat(requests).hasSize(2);
+        assertThat(requests.remove().path("max_tokens").asInt())
+                .isLessThan(requests.remove().path("max_tokens").asInt());
     }
 
     @Test
@@ -196,7 +221,7 @@ class P08ModelGatewayIT {
         java.nio.file.Files.writeString(temp.resolve("custom.md"), "定制开场模板标记。");
         // 类路径模板继续提供其余策略，显式映射只覆盖单个角色。
         var templateConfig = new Gateway("real", settings.baseUrl(), settings.model(), settings.apiKey(),
-                null, "v2.2", 8192, Map.of("roles/host-opening.md", "roles/host-intervention.md"), false);
+                null, "v2.2", 8192, Map.of("roles/host-opening.md", "roles/host-intervention.md"), false, null, null);
         var workflow = DiscussionWorkflow.load(null, mapper);
         var templates = new PromptTemplates(templateConfig, contract, workflow);
         var prompts = List.of("EVALUATE", "PROPOSE", "SOLVE", "EXPLORE").stream()
@@ -207,9 +232,9 @@ class P08ModelGatewayIT {
                 .assemble(RuntimeTask.R05, input("EVALUATE", "测试主题"), false));
 
         var missing = new Gateway("real", settings.baseUrl(), settings.model(), settings.apiKey(),
-                temp.toString(), "v2.2", 8192, Map.of(), false);
+                temp.toString(), "v2.2", 8192, Map.of(), false, null, null);
         assertFailure(Kind.CONFIG_MISSING, () -> run(client(missing), input("EVALUATE", "测试主题")));
-        var unconfigured = new Gateway("real", null, null, null, null, "v2.1", 8192, Map.of(), false);
+        var unconfigured = new Gateway("real", null, null, null, null, "v2.1", 8192, Map.of(), false, null, null);
         assertFailure(Kind.CONFIG_MISSING, () -> run(client(unconfigured), input("EVALUATE", "测试主题")));
         assertThat(requests).isEmpty();
     }
@@ -258,8 +283,9 @@ class P08ModelGatewayIT {
     }
 
     private JsonNode run(OpenAiModelGateway gateway, Map<String, Object> request) {
-        DiscussionBudget budget = new DiscussionBudget(clock);
-        return new RuntimeCalls(gateway, contract, guard, pool, clock).invoke(RuntimeTask.R05, request, budget,
+        DiscussionBudget budget = new DiscussionBudget(clock, 600, 30);
+        return new RuntimeCalls(gateway, contract, guard, pool, clock, new PanelProperties(null, null, null, null))
+                .invoke(RuntimeTask.R05, request, budget,
                 false, Instant.now().plusSeconds(3), json -> json);
     }
 

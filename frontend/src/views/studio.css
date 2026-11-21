@@ -475,7 +475,6 @@
 .seat-speech-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex: none; }
 .seat-speech-name { font-size: 12px; font-weight: 750; letter-spacing: -0.01em; }
 .seat-speech-state { color: var(--seat-color); font-size: 9px; font-weight: 750; letter-spacing: 0.06em; white-space: nowrap; }
-.seat-bubble--frozen .seat-speech-state { color: var(--green); }
 .seat-bubble--text p {
   flex: 1;
   min-height: 0;

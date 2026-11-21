@@ -6,7 +6,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -14,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +26,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
+import com.aipanel.config.PanelProperties;
 import com.aipanel.gateway.ContentGuard;
 import com.aipanel.gateway.ModelGatewayException;
 import com.aipanel.gateway.RuntimeContract;
@@ -32,19 +38,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class RuntimeCalls {
 
     private static final Logger LOG = LoggerFactory.getLogger(RuntimeCalls.class);
+    private static final long BID_GRACE_MILLIS = 350;
     private final RuntimeGateway gateway;
     private final RuntimeContract contract;
     private final ContentGuard guard;
     private final ThreadPoolTaskExecutor executor;
     private final Clock clock;
+    private final PanelProperties.Timeouts timeouts;
 
     public RuntimeCalls(RuntimeGateway gateway, RuntimeContract contract, ContentGuard guard,
-            @Qualifier("modelExecutor") ThreadPoolTaskExecutor executor, Clock clock) {
+            @Qualifier("modelExecutor") ThreadPoolTaskExecutor executor, Clock clock, PanelProperties properties) {
         this.gateway = gateway;
         this.contract = contract;
         this.guard = guard;
         this.executor = executor;
         this.clock = clock;
+        this.timeouts = properties.gateway().timeouts();
     }
 
     public boolean fits(RuntimeTask task, Map<String, Object> input) {
@@ -52,7 +61,8 @@ public class RuntimeCalls {
     }
 
     public <T> T generateRoster(Supplier<T> request) {
-        return await(submit(request::get), clock.instant().plusSeconds(42));
+        // 阵容最多尝试两次（首次 + 一次修正），外层等待需覆盖两次单次超时。
+        return await(submit(request::get), clock.instant().plusSeconds(timeouts.rosterSeconds() * 2L + 10));
     }
 
     public <T> T call(RuntimeTask task, Map<String, Object> input, DiscussionBudget budget,
@@ -72,35 +82,60 @@ public class RuntimeCalls {
         }
     }
 
-    public <T> List<T> collect(List<Supplier<T>> requests, Instant deadline) {
+    /** 同一快照并发报名。首个可发言者就绪后短暂收集同窗竞争者，PASS 不触发早收窗。 */
+    public <T> List<T> collect(List<Supplier<CompletableFuture<T>>> requests, Instant deadline,
+            Predicate<T> canSpeak) {
+        BlockingQueue<CompletableFuture<T>> completed = new LinkedBlockingQueue<>();
+        List<Future<?>> active = new ArrayList<>();
         List<T> results = new ArrayList<>();
-        List<Future<T>> active = new ArrayList<>(requests.size());
+        Instant cutoff = deadline;
+        int permanentFailures = 0;
+        ModelGatewayException lastFailure = null;
         try {
-            // 先提交本窗所有专家，再按同一个截止时间收集结果。
-            for (Supplier<T> request : requests) {
-                if (!clock.instant().isBefore(deadline)) {
+            for (var request : requests) {
+                try {
+                    active.add(executor.submit(() -> {
+                        try {
+                            request.get().whenComplete((value, error) -> completed.add(error == null
+                                    ? CompletableFuture.completedFuture(value) : CompletableFuture.failedFuture(error)));
+                        } catch (RuntimeException error) {
+                            completed.add(CompletableFuture.failedFuture(error));
+                        }
+                    }));
+                } catch (RejectedExecutionException busy) {
+                    completed.add(CompletableFuture.failedFuture(busy));
+                }
+            }
+            for (int i = 0; i < requests.size(); i++) {
+                long nanos = Duration.between(clock.instant(), cutoff).toNanos();
+                var next = completed.poll(Math.max(0, nanos), TimeUnit.NANOSECONDS);
+                if (next == null) {
                     break;
                 }
                 try {
-                    active.add(submit(request::get));
-                } catch (ModelGatewayException error) {
-                    // 入队失败是模型故障，不能计作 PASS。
+                    T result = next.join();
+                    results.add(result);
+                    if (canSpeak.test(result)) {
+                        cutoff = earlier(cutoff, clock.instant().plusMillis(BID_GRACE_MILLIS));
+                    }
+                } catch (CompletionException failure) {
+                    if (failure.getCause() instanceof ModelGatewayException model
+                            && !model.repairable() && model.kind() != ModelGatewayException.Kind.STALE_RESPONSE) {
+                        permanentFailures++;
+                        lastFailure = model;
+                    }
                 }
             }
-            for (Future<T> pending : active) {
-                try {
-                    results.add(await(pending, deadline));
-                } catch (ModelGatewayException error) {
-                    // 隔离单个候选的失败，继续收集及时返回的有效结果。
-                } catch (RuntimeException error) {
-                    // 单个候选的意外异常同样只影响它自己，避免整窗报名失败。
-                    LOG.warn("模型候选执行异常 error={}", error.getClass().getName());
-                }
+            if (lastFailure != null && permanentFailures == requests.size()) {
+                throw lastFailure;
             }
+            return List.copyOf(results);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new ModelGatewayException(ModelGatewayException.Kind.STALE_RESPONSE, "报名窗口已取消");
         } finally {
             active.forEach(future -> future.cancel(true));
         }
-        return List.copyOf(results);
     }
 
     public <T> T invoke(RuntimeTask task, Map<String, Object> input, DiscussionBudget budget,
@@ -116,8 +151,11 @@ public class RuntimeCalls {
             }
             try {
                 // 提炼需要逐条核对全部实录和引文，仍受全场收尾截止时间约束。
-                // 实录累积后输入显著变长，慢模型在 18 秒内易超时，这里放宽到 28 秒。
-                int seconds = task == RuntimeTask.R04 ? 28 : 10;
+                int seconds = switch (task) {
+                    case R04 -> timeouts.insightSeconds();
+                    case R07 -> timeouts.summarySeconds();
+                    default -> timeouts.utteranceSeconds();
+                };
                 Instant physicalDeadline = earlier(deadline, clock.instant().plusSeconds(seconds));
                 JsonNode output = contract.parse(task, gateway.generate(task, input, codes, physicalDeadline));
                 requireTimely(physicalDeadline, deadline);

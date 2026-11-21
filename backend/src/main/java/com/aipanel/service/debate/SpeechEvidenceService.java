@@ -7,11 +7,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import com.aipanel.config.PanelProperties;
@@ -23,7 +28,7 @@ import com.aipanel.service.debate.BidArbitrator.Bid;
 import com.aipanel.service.debate.CrossrefEvidenceLookup.Article;
 import com.fasterxml.jackson.databind.JsonNode;
 
-/** 将已获选的主张交给证据技能核验，所有候选、原文和返回值只在本次准备阶段使用。 */
+/** 专家待机时核验复杂事实或前沿研究，仅将已核实的材料交给本轮候选。 */
 @Service
 public class SpeechEvidenceService {
     private static final Logger LOG = LoggerFactory.getLogger(SpeechEvidenceService.class);
@@ -33,6 +38,7 @@ public class SpeechEvidenceService {
     private final Clock clock;
     private final RuntimeCalls calls;
     private final CrossrefEvidenceLookup lookup;
+    private final int timeoutMillis;
 
     public SpeechEvidenceService(PanelProperties properties, ContentGuard guard, Clock clock,
             RuntimeCalls calls, CrossrefEvidenceLookup lookup) {
@@ -41,6 +47,7 @@ public class SpeechEvidenceService {
         this.clock = clock;
         this.calls = calls;
         this.lookup = lookup;
+        this.timeoutMillis = properties.gateway().timeouts().evidenceTimeoutMillis();
     }
 
     static boolean searchable(Bid bid) {
@@ -49,12 +56,91 @@ public class SpeechEvidenceService {
                 && !"PASS".equals(bid.intent());
     }
 
+    public record ReadyBid(Bid bid, List<Source> sources) { }
+
+    public Research openResearch(ThreadPoolTaskExecutor executor) {
+        return new Research(executor);
+    }
+
+    /** 一场讨论独占，跨窗口仅复用同一专家、同一前提和检索词的核验材料。 */
+    public final class Research implements AutoCloseable {
+        private final ThreadPoolTaskExecutor executor;
+        private final Map<String, Job> jobs = new HashMap<>();
+        private long window;
+        private boolean closed;
+
+        private Research(ThreadPoolTaskExecutor executor) {
+            this.executor = executor;
+        }
+
+        public synchronized long nextWindow() {
+            return ++window;
+        }
+
+        public synchronized String premise(String expertId) {
+            Job job = jobs.get(expertId);
+            return job == null ? null : job.premise();
+        }
+
+        public synchronized CompletableFuture<ReadyBid> prepare(Bid bid, DiscussionContext context,
+                DiscussionBudget budget, long generation) {
+            if (closed || generation != window || Thread.currentThread().isInterrupted()) {
+                return CompletableFuture.failedFuture(ModelGatewayException.timeout());
+            }
+            if (!enabled || timeoutMillis == 0 || !searchable(bid)) {
+                return CompletableFuture.completedFuture(new ReadyBid(bid, List.of()));
+            }
+            String expertId = bid.expert().id();
+            Job previous = jobs.get(expertId);
+            if (previous != null && previous.premise().equals(bid.verificationClaim())
+                    && previous.query().equals(bid.searchQuery())) {
+                return previous.result().thenApply(sources -> new ReadyBid(bid, sources));
+            }
+            if (previous != null) {
+                previous.cancel();
+            }
+            var result = new CompletableFuture<List<Source>>();
+            // 排队时间也计入预算。核验直接使用独立线程池，不再嵌套提交到报名池。
+            Instant end = RuntimeCalls.earlier(budget.deadline(false), clock.instant().plusMillis(timeoutMillis));
+            try {
+                Future<?> task = executor.submit(() -> {
+                    try {
+                        result.complete(find(bid, context, budget, end));
+                    } catch (RuntimeException error) {
+                        LOG.warn("后台查证降级 roomId={} reason={}", context.room().id(), error.getClass().getSimpleName());
+                        result.complete(List.of());
+                    }
+                });
+                jobs.put(expertId, new Job(bid.verificationClaim(), bid.searchQuery(), result, task));
+            } catch (TaskRejectedException busy) {
+                jobs.remove(expertId);
+                result.complete(List.of());
+            }
+            return result.completeOnTimeout(List.of(), Math.max(0L, java.time.Duration.between(clock.instant(), end).toMillis()),
+                    java.util.concurrent.TimeUnit.MILLISECONDS).thenApply(sources -> new ReadyBid(bid, sources));
+        }
+
+        @Override
+        public synchronized void close() {
+            closed = true;
+            jobs.values().forEach(Job::cancel);
+            jobs.clear();
+        }
+    }
+
+    private record Job(String premise, String query, CompletableFuture<List<Source>> result, Future<?> task) {
+        void cancel() {
+            task.cancel(true);
+            result.complete(List.of());
+        }
+    }
+
     public List<Source> find(Bid bid, DiscussionContext context, DiscussionBudget budget, Instant deadline) {
         String query = bid.searchQuery();
         if (!enabled || !searchable(bid) || !guard.safeContext(query).equals(query)) {
             return List.of();
         }
-        Instant end = RuntimeCalls.earlier(deadline.minusSeconds(20), clock.instant().plusSeconds(27));
+        Instant end = RuntimeCalls.earlier(deadline, budget.deadline(false));
         if (!clock.instant().isBefore(end) || !budget.canRun(1)) {
             return List.of();
         }
@@ -96,7 +182,7 @@ public class SpeechEvidenceService {
         Map<String, Object> input = Map.of("discussion_id", room, "insight_id", claimId,
                 "insight_text", bid.verificationClaim(),
                 "utterances", context.transcript().stream().map(context::line).toList(), "candidates", candidates);
-        return calls.call(RuntimeTask.EVIDENCE_CHECK, input, budget, false, end, () -> { }, result -> {
+        return calls.invoke(RuntimeTask.EVIDENCE_CHECK, input, budget, false, end, result -> {
             if (!room.equals(result.path("discussion_id").asText())
                     || !claimId.equals(result.path("insight_id").asText())) {
                 throw RuntimeCalls.invalid("INVALID_TARGET");

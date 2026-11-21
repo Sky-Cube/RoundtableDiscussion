@@ -33,15 +33,24 @@ panel:
     base-url: ${PANEL_AI_BASE_URL:} # LLM API 基础 URL
     model: ${PANEL_AI_MODEL:} # LLM 模型
     api-key: ${PANEL_AI_API_KEY:} # LLM API 密钥
-    template-directory: ${PANEL_AI_TEMPLATE_DIRECTORY:}
-    template-version: ${PANEL_AI_TEMPLATE_VERSION:v2.7}
-    context-window: ${PANEL_AI_CONTEXT_WINDOW:32768}
-    evidence-enabled: ${PANEL_AI_EVIDENCE_ENABLED:true}
+    template-directory: ${PANEL_AI_TEMPLATE_DIRECTORY:} # 自定义 Prompt 模板目录；留空使用包内 prompts/
+    template-version: ${PANEL_AI_TEMPLATE_VERSION:v2.8} # 模板版本号，修改模板后同步更新，用于日志追踪
+    context-window: ${PANEL_AI_CONTEXT_WINDOW:32768} # 模型上下文窗口，用于输入裁剪与调用预算
+    evidence-enabled: ${PANEL_AI_EVIDENCE_ENABLED:true} # 是否允许专家在待机时后台查证复杂或前沿事实
+    reasoning-effort: ${PANEL_AI_REASONING_EFFORT:low} # 快速思考强度；off 表示不发送该字段（DeepSeek 改走 thinking 开关）
+    # 模型调用超时（秒）。慢模型或长输出可单独调大；非正数按默认值处理。
+    timeouts:
+      roster-seconds: ${PANEL_AI_TIMEOUT_ROSTER:50} # R01 阵容生成：一次输出完整 JSON，耗时最长
+      utterance-seconds: ${PANEL_AI_TIMEOUT_UTTERANCE:35} # R02/R03/R05/R06 报名与短发言
+      insight-seconds: ${PANEL_AI_TIMEOUT_INSIGHT:45} # R04 实时提炼：需核对全部实录和引文
+      summary-seconds: ${PANEL_AI_TIMEOUT_SUMMARY:30} # R07 主持收尾：同时作为非总结任务的提前截止余量
+      discussion-seconds: ${PANEL_AI_TIMEOUT_DISCUSSION:600} # 单场讨论总预算，耗尽后按有限收尾结束
+      evidence-timeout-millis: ${PANEL_AI_EVIDENCE_TIMEOUT_MILLIS:${PANEL_AI_EVIDENCE_WAIT_MILLIS:12000}} # 后台查证总时限，0 表示关闭
   orchestration:
     # 同时执行的讨论数量、单场专家发言上限与相邻发言间隔（毫秒）。
     capacity: 2
     max-expert-utterances: 0
-    stage-delay-millis: 2500
+    stage-delay-millis: 0
   request:
     allowed-hosts:
       - 127.0.0.1

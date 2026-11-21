@@ -10,16 +10,18 @@ public final class DiscussionBudget {
 
     private final Clock clock;
     private final Instant end;
+    private final int summaryReserveSeconds;
     private int requests;
     private int reserved;
 
-    public DiscussionBudget(Clock clock) {
+    public DiscussionBudget(Clock clock, int totalSeconds, int summaryReserveSeconds) {
         this.clock = clock;
-        this.end = clock.instant().plusSeconds(360);
+        this.end = clock.instant().plusSeconds(totalSeconds);
+        this.summaryReserveSeconds = summaryReserveSeconds;
     }
 
     public Instant deadline(boolean summary) {
-        return summary ? end : end.minusSeconds(22);
+        return summary ? end : end.minusSeconds(summaryReserveSeconds);
     }
 
     public synchronized boolean openWindow(int expertCount) {

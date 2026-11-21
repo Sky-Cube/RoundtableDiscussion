@@ -39,6 +39,12 @@ public class DiscussionExecutionConfiguration {
         return executor(slots, slots, "panel-model-");
     }
 
+    @Bean(name = "evidenceExecutor")
+    public ThreadPoolTaskExecutor evidenceExecutor(PanelProperties properties) {
+        int rooms = properties.orchestration().capacity();
+        return executor(rooms, rooms * RosterValidator.MAX_EXPERT_COUNT, "panel-evidence-");
+    }
+
     @Bean(name = "discussionExecutor")
     public ThreadPoolTaskExecutor discussionExecutor(PanelProperties properties) {
         int capacity = properties.orchestration().capacity();

@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Participant, Utterance } from '../../api/discussions'
 import { createRoundtable, seatPositions, type SeatAnchor } from './roundtable'
+import { resolveSceneSpeech } from './scene-speech'
 
 const props = defineProps<{ participants: Participant[]; bubble?: Utterance; ended?: boolean }>()
 const stage = ref<HTMLElement>()
@@ -11,19 +12,10 @@ const projected = ref<SeatAnchor[]>([])
 const seats = computed(() => seatPositions(props.participants))
 const layout = computed(() => JSON.stringify(seats.value.map(({ id, color, style }) => [id, color, style])))
 const active = computed(() => props.participants.find(member => member.stageStatus === 'SPEAKING'))
-const focus = computed(() => active.value ?? props.participants.find(member => member.id === props.bubble?.participantId))
 const membersById = computed(() => new Map(props.participants.map(member => [member.id, member])))
-const speech = computed(() => {
-  if (active.value?.publicSpeech) {
-    return { participantId: active.value.id, content: active.value.publicSpeech, frozen: false }
-  }
-  // 讨论结束后不再保留定格气泡，让每位角色的姓名牌都能完整显示
-  if (props.ended) return undefined
-  if (props.bubble && !active.value) {
-    return { participantId: props.bubble.participantId, content: props.bubble.content, frozen: true }
-  }
-  return undefined
-})
+const speech = computed(() => resolveSceneSpeech(props.participants, props.bubble, props.ended ?? false))
+// 气泡仍在展示或正在生成下一条发言时都视为正在发言，与左侧成员状态保持同一判定口径
+const speaker = computed(() => props.participants.find(member => member.id === (active.value?.id ?? speech.value?.participantId)))
 const stageSize = ref({ width: 0, height: 0 })
 let scene: ReturnType<typeof createRoundtable>
 let observer: ResizeObserver | undefined
@@ -84,7 +76,7 @@ watch(layout, draw)
 watch(() => active.value?.id, id => {
   scene?.setActive(id)
 })
-watch(() => (speech.value ? `${speech.value.participantId}:${speech.value.frozen}` : ''), async () => {
+watch(() => (speech.value ? `${speech.value.participantId}:${speech.value.live}` : ''), async () => {
   await nextTick()
   const text = stage.value?.querySelector<HTMLElement>('.seat-bubble--text p')
   // 每条发言都从首行开始展示，超长内容交给用户滚动，避免自动滚动把开头留在可视区外
@@ -102,9 +94,9 @@ onBeforeUnmount(() => {
     <div v-if="!rendered" class="flat-table" aria-hidden="true"></div>
 
     <div class="scene-caption" aria-live="polite">
-      <span class="scene-caption__dot" :data-state="active ? 'SPEAKING' : focus ? 'PREPARING' : 'IDLE'" aria-hidden="true"></span>
-      <span>{{ active ? '正在发言' : focus ? '最近发言' : '等待发言' }}</span>
-      <strong v-if="focus" :style="{ color: seats.find(seat => seat.id === focus?.id)?.color }">{{ focus.displayName }}</strong>
+      <span class="scene-caption__dot" :data-state="speaker ? 'SPEAKING' : 'IDLE'" aria-hidden="true"></span>
+      <span>{{ speaker ? '正在发言' : '等待发言' }}</span>
+      <strong v-if="speaker" :style="{ color: seats.find(seat => seat.id === speaker?.id)?.color }">{{ speaker.displayName }}</strong>
     </div>
 
     <div class="scene-note" aria-hidden="true">
@@ -129,8 +121,8 @@ onBeforeUnmount(() => {
         class="seat-bubble"
         :class="{
           'seat-bubble--text': speech?.participantId === seat.id,
-          'seat-bubble--frozen': speech?.participantId === seat.id && speech?.frozen,
-          'seat-bubble--active': speech?.participantId === seat.id && !speech?.frozen,
+          'seat-bubble--frozen': speech?.participantId === seat.id && !speech?.live,
+          'seat-bubble--active': speech?.participantId === seat.id && speech?.live,
         }"
         :data-align="headAnchor(index).x < 34 ? 'left' : headAnchor(index).x > 66 ? 'right' : 'center'"
         :data-side="bubbleTop(index) ? 'pinned' : 'anchor'"
@@ -142,12 +134,12 @@ onBeforeUnmount(() => {
         <template v-if="speech?.participantId === seat.id">
           <header class="seat-speech-head">
             <span class="seat-speech-name">{{ membersById.get(seat.id)?.displayName }}</span>
-            <span class="seat-speech-state">{{ speech.frozen ? '已定格' : '发言中' }}</span>
+            <span class="seat-speech-state">发言中</span>
           </header>
           <p>{{ speech.content }}</p>
           <footer class="seat-speech-foot">
-            <span>{{ speech.frozen ? '发言已结束 · 内容定格' : '实时转写' }}</span>
-            <i v-if="!speech.frozen" aria-hidden="true"></i>
+            <span>{{ speech.live ? '实时转写' : '完整发言 · 已入实录' }}</span>
+            <i v-if="speech.live" aria-hidden="true"></i>
           </footer>
         </template>
       </div>

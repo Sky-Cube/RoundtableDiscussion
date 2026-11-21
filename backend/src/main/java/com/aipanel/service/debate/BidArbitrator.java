@@ -12,7 +12,13 @@ public final class BidArbitrator {
     private BidArbitrator() {
     }
 
-    public record Bid(Participant expert, String intent, Integer target, String focus, String claim, String searchQuery, String searchPremise) {
+    public record Bid(Participant expert, String intent, Integer target, String focus, String claim,
+            String searchQuery, String searchPremise, boolean speechReady) {
+        public Bid(Participant expert, String intent, Integer target, String focus, String claim,
+                String searchQuery, String searchPremise) {
+            this(expert, intent, target, focus, claim, searchQuery, searchPremise, false);
+        }
+
         public Bid(Participant expert, String intent, Integer target, String focus, String claim, String searchQuery) {
             this(expert, intent, target, focus, claim, searchQuery, null);
         }
@@ -28,11 +34,6 @@ public final class BidArbitrator {
     }
 
     public static Optional<Bid> select(PhasePlan phase, List<Bid> bids, List<Utterance> transcript) {
-        return select(phase, bids, transcript, false);
-    }
-
-    public static Optional<Bid> select(PhasePlan phase, List<Bid> bids, List<Utterance> transcript,
-            boolean evidenceWindow) {
         List<String> speakers = transcript.stream().filter(line -> "EXPERT".equals(line.kind()))
                 .map(Utterance::participantId).toList();
         List<Bid> candidates = bids.stream().filter(bid -> !"PASS".equals(bid.intent())).toList();
@@ -40,8 +41,7 @@ public final class BidArbitrator {
         boolean repeated = speakers.size() >= 2 && lastSpeaker.equals(speakers.get(speakers.size() - 2));
         boolean mustYield = repeated && candidates.stream().anyMatch(bid -> !bid.expert().id().equals(lastSpeaker));
         return candidates.stream().filter(bid -> !mustYield || !bid.expert().id().equals(lastSpeaker))
-                .min(Comparator.<Bid, Boolean>comparing(bid -> evidenceWindow && SpeechEvidenceService.searchable(bid))
-                        .reversed().thenComparing(Comparator.<Bid>comparingInt(bid -> score(phase, bid, speakers)).reversed())
+                .min(Comparator.<Bid>comparingInt(bid -> score(phase, bid, speakers)).reversed()
                         .thenComparingInt(bid -> speakers.lastIndexOf(bid.expert().id()))
                         .thenComparing(bid -> bid.expert().id()));
     }

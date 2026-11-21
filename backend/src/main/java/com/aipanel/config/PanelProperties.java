@@ -18,10 +18,12 @@ public record PanelProperties(Database db, Gateway gateway, Request request, Orc
 
     public PanelProperties {
         db = db == null ? new Database("data/panel.db", "data", "classpath:db/init.sql", true) : db;
-        gateway = gateway == null ? new Gateway(null, null, null, null, null, null, 0, null, false) : gateway;
+        gateway = gateway == null
+                ? new Gateway(null, null, null, null, null, null, 0, null, false, null, null)
+                : gateway;
         request = request == null ? new Request(List.of("127.0.0.1", "localhost", "::1"), List.of(5173, 5183, 8080))
                 : request;
-        orchestration = orchestration == null ? new Orchestration(2, 0, 2500) : orchestration;
+        orchestration = orchestration == null ? new Orchestration(2, 0, 0) : orchestration;
     }
 
 
@@ -35,13 +37,16 @@ public record PanelProperties(Database db, Gateway gateway, Request request, Orc
     }
 
     public record Gateway(String mode, String baseUrl, String model, String apiKey, String templateDirectory,
-            String templateVersion, int contextWindow, Map<String, String> templates, boolean evidenceEnabled) {
+            String templateVersion, int contextWindow, Map<String, String> templates, boolean evidenceEnabled,
+            Timeouts timeouts, String reasoningEffort) {
 
         public Gateway {
             mode = blankTo(mode, "real");
-            templateVersion = blankTo(templateVersion, "v2.7");
+            templateVersion = blankTo(templateVersion, "v2.8");
             contextWindow = contextWindow <= 0 ? 32768 : contextWindow;
             templates = templates == null ? Map.of() : Map.copyOf(templates);
+            timeouts = timeouts == null ? Timeouts.DEFAULT : timeouts;
+            reasoningEffort = blankTo(reasoningEffort, "low");
         }
 
         public boolean scripted() {
@@ -51,6 +56,32 @@ public record PanelProperties(Database db, Gateway gateway, Request request, Orc
         @Override
         public String toString() {
             return "Gateway[mode=" + mode + ", templateVersion=" + templateVersion + "]";
+        }
+    }
+
+    /**
+     * 模型调用超时预算（秒）。非正数按默认值处理，便于只覆盖其中一项。
+     *
+     * @param rosterSeconds     R01 阵容生成，输出较长，默认 50 秒
+     * @param utteranceSeconds  R02/R03/R05/R06 短发言，默认 35 秒
+     * @param insightSeconds    R04 实时提炼，需核对全部实录，默认 45 秒
+     * @param summarySeconds    R07 主持收尾，默认 30 秒
+     * @param discussionSeconds 单场讨论总预算，默认 600 秒
+     * @param evidenceTimeoutMillis 后台查证总时限，默认 12000 毫秒，0 表示关闭
+     */
+    public record Timeouts(int rosterSeconds, int utteranceSeconds, int insightSeconds, int summarySeconds,
+            int discussionSeconds, int evidenceTimeoutMillis) {
+
+        public static final Timeouts DEFAULT = new Timeouts(0, 0, 0, 0, 0, -1);
+
+        public Timeouts {
+            rosterSeconds = positiveTo(rosterSeconds, 50);
+            utteranceSeconds = positiveTo(utteranceSeconds, 35);
+            insightSeconds = positiveTo(insightSeconds, 45);
+            summarySeconds = positiveTo(summarySeconds, 30);
+            discussionSeconds = positiveTo(discussionSeconds, 600);
+            // 允许显式设为 0，表示关闭外部查证。
+            evidenceTimeoutMillis = evidenceTimeoutMillis < 0 ? 12000 : evidenceTimeoutMillis;
         }
     }
 
@@ -81,5 +112,9 @@ public record PanelProperties(Database db, Gateway gateway, Request request, Orc
 
     private static String blankTo(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private static int positiveTo(int value, int fallback) {
+        return value <= 0 ? fallback : value;
     }
 }

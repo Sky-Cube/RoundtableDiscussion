@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+@org.springframework.test.context.TestPropertySource(properties = "panel.gateway.evidence-enabled=true")
 class RuntimeDiscussionIT extends AbstractPanelIntegrationTest {
 
     private static final String PASS = """
@@ -41,6 +42,9 @@ class RuntimeDiscussionIT extends AbstractPanelIntegrationTest {
 
     @MockitoSpyBean
     private ScriptedRuntimeGateway runtime;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.aipanel.service.debate.CrossrefEvidenceLookup lookup;
 
     @ParameterizedTest
     @CsvSource({
@@ -221,6 +225,103 @@ class RuntimeDiscussionIT extends AbstractPanelIntegrationTest {
         } else {
             assertThat(tasks.stream().filter(task -> task == RuntimeTask.R06)).hasSize(1);
             assertThat(kindCount(room, "SUMMARY")).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void publishesOrdinarySpeechWhileFrontierResearchIsStillRunning() throws Exception {
+        var searching = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var nextWindow = new CountDownLatch(1);
+        var expanded = new ConcurrentLinkedQueue<String>();
+        doAnswer(call -> {
+            searching.countDown();
+            release.await(8, TimeUnit.SECONDS);
+            return List.of();
+        }).when(lookup).search(any(), any());
+        doAnswer(call -> {
+            RuntimeTask task = call.getArgument(0);
+            Map<String, Object> input = call.getArgument(1);
+            if (task == RuntimeTask.R03) {
+                expanded.add(input.get("proposal").toString());
+            }
+            if (task != RuntimeTask.R02) {
+                return call.callRealMethod();
+            }
+            var lines = objectMapper.valueToTree(input.get("utterances")).valueStream()
+                    .filter(line -> "EXPERT".equals(line.path("kind").asText())).toList();
+            if (lines.size() >= 2) {
+                return PASS;
+            }
+            if (!lines.isEmpty()) {
+                nextWindow.countDown();
+            }
+            if ("COST".equals(objectMapper.valueToTree(input.get("expert")).path("perspective").asText())) {
+                return """
+                        {"intent":"RAISE","targetUtteranceSeq":null,"focusCode":"EVIDENCE",
+                         "proposedClaim":"前沿研究对岗位需求的影响尚需核实。","speechReady":true,
+                         "searchReason":"FRONTIER","searchQuery":"graduate hiring","searchPremise":"前沿研究对岗位需求的影响"}
+                        """;
+            }
+            searching.await(3, TimeUnit.SECONDS);
+            return lines.isEmpty() ? """
+                    {"intent":"RAISE","targetUtteranceSeq":null,"focusCode":"TRADE_OFF",
+                     "proposedClaim":"先比较本地执行成本再定方案。","speechReady":true}
+                    """ : PASS;
+        }).when(runtime).generate(any(), anyMap(), anyList(), any(Instant.class));
+        String id = draft("SOLVE", "普通讨论与后台查证并行");
+        assertThat(start(id)).isEqualTo(202);
+        try {
+            assertThat(nextWindow.await(4, TimeUnit.SECONDS)).isTrue();
+            var room = getData("/api/v1/discussions/" + id);
+            assertThat(kindCount(room, "EXPERT")).isEqualTo(1);
+            assertThat(room.path("transcript").get(1).path("content").asText()).isEqualTo("先比较本地执行成本再定方案。");
+            assertThat(expanded).isEmpty();
+        } finally {
+            release.countDown();
+        }
+        assertThat(kindCount(await(id, "COMPLETED"), "EXPERT")).isEqualTo(2);
+        assertThat(expanded).containsExactly("前沿研究对岗位需求的影响尚需核实。");
+        org.mockito.Mockito.verify(lookup).search(any(), any());
+    }
+
+    @Test
+    void resumesAfterAnEntireBidWindowTimesOut() throws Exception {
+        var attempts = new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(invocation -> {
+            if (invocation.getArgument(0) == RuntimeTask.R02 && attempts.incrementAndGet() <= 4) {
+                throw ModelGatewayException.timeout();
+            }
+            return invocation.callRealMethod();
+        }).when(runtime).generate(any(), anyMap(), anyList(), any(Instant.class));
+        String id = draft("SOLVE", "报名超时后恢复");
+        assertThat(start(id)).isEqualTo(202);
+        assertThat(kindCount(await(id, "COMPLETED"), "EXPERT")).isPositive();
+    }
+
+    @Test
+    void startsSpeechWhileAnotherExpertIsStillWaitingForTheModel() throws Exception {
+        var speechStarted = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            RuntimeTask task = invocation.getArgument(0);
+            Map<String, Object> input = invocation.getArgument(1);
+            if (task == RuntimeTask.R02 && speechStarted.getCount() != 0
+                    && "COST".equals(objectMapper.valueToTree(input.get("expert")).path("perspective").asText())) {
+                release.await(6, TimeUnit.SECONDS);
+            }
+            if (task == RuntimeTask.R03) {
+                speechStarted.countDown();
+            }
+            return invocation.callRealMethod();
+        }).when(runtime).generate(any(), anyMap(), anyList(), any(Instant.class));
+        String id = draft("EXPLORE", "快专家先发言");
+        assertThat(start(id)).isEqualTo(202);
+        try {
+            assertThat(speechStarted.await(3, TimeUnit.SECONDS)).as("仍有慢报名时应开始发言").isTrue();
+        } finally {
+            release.countDown();
+            await(id, "COMPLETED");
         }
     }
 

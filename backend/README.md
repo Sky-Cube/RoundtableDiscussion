@@ -30,9 +30,9 @@ java -jar backend/target/ai-panel-backend-exec.jar `
 | `PANEL_AI_MODEL` | 空 | 供应商支持的模型标识 |
 | `PANEL_AI_API_KEY` | 空 | 后端运行进程读取的凭据 |
 | `PANEL_AI_TEMPLATE_DIRECTORY` | 包内 `prompts/` | 自定义时指向含公共、角色、任务及四套议题策略的 UTF-8 模板目录，可附带 `workflow.json` |
-| `PANEL_AI_TEMPLATE_VERSION` | `v2.7` | 模板版本号，修改模板时同步更新 |
+| `PANEL_AI_TEMPLATE_VERSION` | `v2.8` | 模板版本号，修改模板时同步更新 |
 | `PANEL_AI_CONTEXT_WINDOW` | `32768` | 供应商模型的上下文窗口，扣除本任务输出和包装预留 |
-| `PANEL_AI_EVIDENCE_ENABLED` | `true` | 获选专家可请求查证，后台用 Crossref 核对原始摘要，并调用证据检索技能 |
+| `PANEL_AI_EVIDENCE_ENABLED` | `true` | 专家可在待机时为复杂事实或前沿研究请求查证，后台用 Crossref 核对原始摘要，并调用证据检索技能 |
 | `panel.orchestration.capacity` | `2` | 同时执行的讨论数，与执行线程池大小一致 |
 | `panel.orchestration.max-expert-utterances` | `0` | 默认按讨论进展收尾，显式正数可限定发言总数 |
 | `panel.request.allowed-hosts` | `127.0.0.1,localhost,::1` | 回环 Host 白名单，越界返回 403 |
@@ -61,7 +61,7 @@ java -jar backend/target/ai-panel-backend-exec.jar `
 ## 讨论执行
 
 1. `start` 用条件更新 `DRAFT → RUNNING` 并发布 `discussion.status`，重复确认只返回当前状态；终态 409、容量满 429。
-2. 主持开场后按议题目标加载流程模板的阶段顺序、发言名额和报名窗口。每轮专家共享冻结实录并独立报名，服务端按意图、缺席时长和阶段关注点选人。每次成功提交专家发言即尝试提炼。收尾预留两次模型调用和 22 秒。 [流程模板](../prompts/workflow.json)
+2. 主持开场后按议题目标加载流程模板的阶段顺序、发言名额和报名窗口。每轮专家共享冻结实录并独立报名，首个合格候选就绪后最多再等 350 毫秒，按意图、缺席时长和阶段关注点选人。已校验的普通短台词可直接发布，外部查证在独立线程池中完成后才参与裁决。每次成功提交专家发言即尝试提炼。收尾预留两次模型调用和 30 秒。 [流程模板](../prompts/workflow.json)
 3. 席位状态、发言与公开事件在同一事务提交；`publicFocus` 只取受控映射，`IDLE` 时清空。
 4. 失败时房间置为 `FAILED`、复位席位并发布失败事件，已提交内容保留。
 5. 事件流按房间和序号读取，`Last-Event-ID` 优先于 `after`；全局 16 条、单房间 8 条连接上限。
