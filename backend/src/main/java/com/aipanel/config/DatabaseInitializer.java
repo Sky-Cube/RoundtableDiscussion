@@ -14,14 +14,14 @@ import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 /**
- * 启动时执行根目录 init.sql，建立版本化结构并写入五条幂等预设。
+ * 启动时执行根目录 init.sql，建立版本化结构并写入六条幂等预设。
  *
  * <p>脚本可重复执行：已存在的预设不会被改写，重复初始化只保持行数与内容一致。
  */
 public class DatabaseInitializer implements InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
-    private static final int REQUIRED_PRESETS = 5;
+    private static final int REQUIRED_PRESETS = 6;
 
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;

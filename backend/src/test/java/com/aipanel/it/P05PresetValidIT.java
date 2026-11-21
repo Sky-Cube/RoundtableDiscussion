@@ -40,25 +40,34 @@ class P05PresetValidIT extends AbstractPanelIntegrationTest {
             int firstCount = initializer.countPresets();
             String firstFingerprint = fingerprint(jdbc);
 
+            jdbc.update("""
+                    INSERT INTO preset VALUES ('ai-support-buy-build', '首版内置议题', 'EVALUATE', 4)
+                    """);
+            jdbc.update("""
+                    INSERT INTO preset_participant
+                    SELECT 'ai-support-buy-build', id, role, display_name, profession, title, stance, perspective, color_key
+                    FROM preset_participant WHERE preset_slug = 'ai-graduate-careers'
+                    """);
             initializer.initialize();
 
-            assertThat(firstCount).isEqualTo(5);
-            assertThat(initializer.countPresets()).isEqualTo(5);
+            assertThat(firstCount).isEqualTo(6);
+            assertThat(initializer.countPresets()).isEqualTo(6);
             assertThat(fingerprint(jdbc)).isEqualTo(firstFingerprint);
-            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM preset_participant", Integer.class)).isEqualTo(25);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM preset_participant", Integer.class)).isEqualTo(30);
+            assertThat(jdbc.queryForList("PRAGMA foreign_key_check")).isEmpty();
         } finally {
             TestDirectories.deleteRecursively(directory);
         }
     }
 
     @Test
-    @DisplayName("五个预设按 slug 升序返回，主持排在阵容首位")
+    @DisplayName("六个预设按 slug 升序返回，主持排在阵容首位")
     void listsPresetsInSlugOrder() throws Exception {
         JsonNode presets = getData("/api/v1/presets");
 
-        assertThat(presets).hasSize(5);
-        assertThat(presets.get(0).get("slug").asText()).isEqualTo("ai-support-buy-build");
-        assertThat(presets.get(4).get("slug").asText()).isEqualTo("school-ai-homework");
+        assertThat(presets).hasSize(6);
+        assertThat(presets.get(0).get("slug").asText()).isEqualTo("ai-graduate-careers");
+        assertThat(presets.get(5).get("slug").asText()).isEqualTo("rental-repair-disputes");
         for (JsonNode preset : presets) {
             assertThat(preset.get("participants").get(0).get("role").asText()).isEqualTo("HOST");
             assertThat(preset.get("expertCount").asInt()).isEqualTo(4);
@@ -68,7 +77,7 @@ class P05PresetValidIT extends AbstractPanelIntegrationTest {
     @Test
     @DisplayName("同一预设连续复制两次得到独立草稿，内容一致且不调用模型")
     void copiesPresetTwiceWithoutModel() throws Exception {
-        String slug = "hybrid-work-policy";
+        String slug = "bus-demand-shuttle";
         JsonNode presets = getData("/api/v1/presets");
         JsonNode preset = null;
         for (JsonNode candidate : presets) {

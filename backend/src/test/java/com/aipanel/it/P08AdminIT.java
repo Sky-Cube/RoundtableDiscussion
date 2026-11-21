@@ -26,7 +26,7 @@ class P08AdminIT extends AbstractPanelIntegrationTest {
         for (String status : new String[] {"DRAFT", "RUNNING", "SUMMARIZING", "COMPLETED", "FAILED"}) {
             assertThat(counts.has(status)).isTrue();
         }
-        assertThat(overview.get("presetCount").asInt()).isEqualTo(5);
+        assertThat(overview.get("presetCount").asInt()).isEqualTo(6);
         assertThat(overview.get("totalDiscussions").asInt())
                 .isEqualTo(counts.get("DRAFT").asInt() + counts.get("RUNNING").asInt()
                         + counts.get("SUMMARIZING").asInt() + counts.get("COMPLETED").asInt()

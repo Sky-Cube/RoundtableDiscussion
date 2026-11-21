@@ -67,3 +67,4 @@ prompts/
 AI开发实习生远程作业-AI圆桌讨论WebAppMVP.md
 # 仅忽略根目录说明文件，保留 backend/frontend 等子目录 README
 /README.md
+开发过程与工作流说明.md

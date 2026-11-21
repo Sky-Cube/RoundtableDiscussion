@@ -18,7 +18,7 @@ import { agendaFor } from './agenda'
 const template = fixture.snapshots.A0 as DiscussionSnapshot
 const presets = fixture.http.find(item => item.operation === 'listPresets' && item.response.status === 200)!
   .response.body!.data as Preset[]
-const primaryPreset = presets.find(preset => preset.slug === 'ai-support-buy-build')!
+const primaryPreset = presets.find(preset => preset.slug === 'clinic-message-reminders')!
 const availableExperts = presets.flatMap(preset => preset.participants.filter(member => member.role === 'EXPERT'))
 type FixtureFrame = { event: EventName; id: string; data: { discussionId: string; seq: number; occurredAt: string; payload: unknown } }
 

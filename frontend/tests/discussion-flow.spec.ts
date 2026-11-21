@@ -76,7 +76,7 @@ describe('P03 大厅与阵容', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('暂时没有进行中的讨论')
     expect(wrapper.text()).toContain('发起一场讨论')
-    expect(wrapper.findAll('.preset-button')).toHaveLength(5)
+    expect(wrapper.findAll('.preset-button')).toHaveLength(6)
   })
 
   it.each([2, 121])('拒绝含 %s 个 Unicode 码点的议题', async (length) => {
@@ -124,7 +124,7 @@ describe('P03 大厅与阵容', () => {
 
   it('点击预设只复制草稿并展示预设讨论类型', async () => {
     const baseFetch = fetchMock.getMockImplementation()!
-    const copyPath = '/api/v1/presets/hybrid-work-policy/discussions'
+    const copyPath = '/api/v1/presets/bus-demand-shuttle/discussions'
     fetchMock.mockImplementation((path, init) => {
       if (path === copyPath) return fromFixture(fixture.http[13].response)
       if (path === `/api/v1/discussions/${copiedDraft.id}`) return ok(copiedDraft)

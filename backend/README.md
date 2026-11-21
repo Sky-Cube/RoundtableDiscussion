@@ -5,8 +5,7 @@ Java 21、Spring Boot 3.5.16 和 SQLite 后端，支持房间草稿、预设、�
 ## 运行
 
 ```powershell
-# 在仓库根目录构建，生成带前端静态文件的可执行包
-npm --prefix frontend run build
+# 在仓库根目录构建后端可执行包（前端由 Vite 单独启动）
 mvn -B -f backend/pom.xml package
 
 # 本地联调：dev profile 用确定性脚本生成，不访问外网
@@ -51,7 +50,7 @@ java -jar backend/target/ai-panel-backend-exec.jar `
 | `DELETE` | `/api/v1/discussions/{id}` | `204` 删除中断房间及其记录 | `400`、`403`、`404`、`409` |
 | `POST` | `/api/v1/discussions/{id}/start` | `202` `{id,status}` | `400`、`404`、`409`、`429` |
 | `GET` | `/api/v1/discussions/{id}/events?after=` | `200` `text/event-stream`，回放后接实时；终态追平 `204` | `400`、`404`、`429` |
-| `GET` | `/api/v1/presets` | `200` 五条预设，按 slug 升序 | `500` |
+| `GET` | `/api/v1/presets` | `200` 六条内置预设，按 slug 升序 | `500` |
 | `POST` | `/api/v1/presets/{slug}/discussions` | `201` 新草稿 + `Location` | `400`、`404`、`500` |
 | `GET` | `/api/v1/admin/overview` | `200` 状态计数与记录量 | `500` |
 | `GET` | `/api/v1/admin/discussions?status=&keyword=&date=` | `200` 房间列表（含计数），支持按名称与日期检索 | `400` |

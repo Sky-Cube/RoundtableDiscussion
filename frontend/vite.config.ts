@@ -13,6 +13,11 @@ export default defineConfig(async ({ command, mode, isPreview }) => {
     ],
     server: { host: '127.0.0.1', port: 5173, strictPort: true, proxy: fixtureMode ? undefined : proxy },
     preview: { host: '127.0.0.1', proxy },
-    test: { environment: 'jsdom', include: ['tests/**/*.spec.ts'], exclude: ['tests/browser/**'] },
+    test: {
+      environment: 'jsdom',
+      include: ['tests/**/*.spec.ts'],
+      // 浏览器用例与系统级 E2E 用例分别由 Playwright 运行，不进入 Vitest 收集范围。
+      exclude: ['tests/browser/**', 'tests/system/**'],
+    },
   }
 })

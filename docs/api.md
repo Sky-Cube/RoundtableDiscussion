@@ -239,7 +239,7 @@ HTTP `502` 示例。
 
 - **请求方法** `GET`
 - **接口路径** `/presets`
-- **接口描述** 返回系统预设议题、目标和阵容。初始化后至少有 5 条，按 `slug` 升序。
+- **接口描述** 返回系统预设议题、目标和阵容。包含 6 条内置预设，按 `slug` 升序。
 
 #### 请求头
 
@@ -277,16 +277,16 @@ HTTP `200`。
   "message": "成功",
   "data": [
     {
-      "slug": "ai-support-buy-build",
-      "topic": "中小团队应优先自研还是采购 AI 客服？",
-      "discussionGoal": "EVALUATE",
+      "slug": "ai-graduate-careers",
+      "topic": "AI 对应届计算机毕业生的影响有多大？",
+      "discussionGoal": "EXPLORE",
       "expertCount": 4,
       "participants": [
         {
           "id": "host",
           "role": "HOST",
-          "displayName": "顾言",
-          "profession": "节目主持",
+          "displayName": "闻知夏",
+          "profession": "议题访谈",
           "title": "圆桌主持人",
           "stance": null,
           "perspective": null,
@@ -295,114 +295,56 @@ HTTP `200`。
         {
           "id": "e1",
           "role": "EXPERT",
-          "displayName": "陈简",
-          "profession": "成本管理",
-          "title": "成本控制负责人",
-          "stance": "四周内交付时优先采购成熟方案",
-          "perspective": "COST",
-          "colorKey": "blue"
-        },
-        {
-          "id": "e2",
-          "role": "EXPERT",
-          "displayName": "林昭",
-          "profession": "软件工程",
-          "title": "平台架构师",
-          "stance": "规则频繁变更时维护自研编排",
-          "perspective": "DELIVERY",
-          "colorKey": "green"
-        },
-        {
-          "id": "e3",
-          "role": "EXPERT",
-          "displayName": "赵岚",
-          "profession": "客服运营",
-          "title": "客户运营经理",
-          "stance": "小流量核验服务效果再逐步拓展",
-          "perspective": "EVIDENCE",
-          "colorKey": "amber"
-        },
-        {
-          "id": "e4",
-          "role": "EXPERT",
-          "displayName": "方钰",
-          "profession": "隐私工程",
-          "title": "隐私工程师",
-          "stance": "优先明确数据留存和迁移权利",
-          "perspective": "RISK",
-          "colorKey": "rose"
-        }
-      ]
-    },
-    {
-      "slug": "city-curb-space",
-      "topic": "市中心路边停车位应改为配送与无障碍上下客区吗？",
-      "discussionGoal": "EVALUATE",
-      "expertCount": 4,
-      "participants": [
-        {
-          "id": "host",
-          "role": "HOST",
-          "displayName": "贾晨",
-          "profession": "节目主持",
-          "title": "圆桌主持人",
-          "stance": null,
-          "perspective": null,
-          "colorKey": "violet"
-        },
-        {
-          "id": "e1",
-          "role": "EXPERT",
-          "displayName": "冯远",
-          "profession": "交通规划",
-          "title": "交通规划师",
-          "stance": "按道路功能与通行时段分配路缘",
+          "displayName": "陆行之",
+          "profession": "软件研发校招",
+          "title": "研发校招负责人",
+          "stance": "如果外包与正式岗位都缩招，我会先看招聘预算；只有相同预算下例行编码岗名额降得更多，才倾向于认为 AI 替代了部分新人任务。",
           "perspective": "GOVERNANCE",
           "colorKey": "blue"
         },
         {
           "id": "e2",
           "role": "EXPERT",
-          "displayName": "唐立",
-          "profession": "商户运营",
-          "title": "沿街商户代表",
-          "stance": "保留便于经营交付的短时停车",
-          "perspective": "COST",
+          "displayName": "许闻川",
+          "profession": "研发工程",
+          "title": "初级开发带教工程师",
+          "stance": "我预期 AI 能让新人更快完成有清晰验收标准的小改动；若返工耗时抵消初稿节省，我会下调对实际交付收益的判断。",
+          "perspective": "DELIVERY",
           "colorKey": "green"
         },
         {
           "id": "e3",
           "role": "EXPERT",
-          "displayName": "马会",
-          "profession": "城市配送",
-          "title": "城市配送调度员",
-          "stance": "先在配送高峰减少双排停车",
-          "perspective": "DELIVERY",
+          "displayName": "方宁",
+          "profession": "高校就业服务",
+          "title": "计算机专业毕业去向跟踪教师",
+          "stance": "我倾向于认为 AI 辅助作品先改善无实习学生的面试机会；若同类岗位中首份录用同样提前，收益就可能延伸到初筛之后。",
+          "perspective": "USER_IMPACT",
           "colorKey": "amber"
         },
         {
           "id": "e4",
           "role": "EXPERT",
-          "displayName": "秦宜",
-          "profession": "无障碍出行",
-          "title": "无障碍出行顾问",
-          "stance": "确保上下客通道全程保持连续",
-          "perspective": "USER_IMPACT",
+          "displayName": "梁若衡",
+          "profession": "劳动经济研究",
+          "title": "技术变迁与就业研究员",
+          "stance": "我会用低暴露岗位作对照估计影响；若高低暴露岗位在普及前就有不同的招聘趋势，这个差值不能直接解释为 AI 的影响。",
+          "perspective": "EVIDENCE",
           "colorKey": "rose"
         }
       ]
     },
     {
-      "slug": "hybrid-work-policy",
-      "topic": "如何设计百人公司的混合办公规则？",
+      "slug": "bus-demand-shuttle",
+      "topic": "近郊产业园如何试点预约接驳，让夜班通勤更可靠？",
       "discussionGoal": "PROPOSE",
       "expertCount": 4,
       "participants": [
         {
           "id": "host",
           "role": "HOST",
-          "displayName": "许明",
-          "profession": "节目主持",
+          "displayName": "苏迢",
+          "profession": "议题访谈",
           "title": "圆桌主持人",
           "stance": null,
           "perspective": null,
@@ -411,56 +353,56 @@ HTTP `200`。
         {
           "id": "e1",
           "role": "EXPERT",
-          "displayName": "周弦",
-          "profession": "人事管理",
-          "title": "人力资源负责人",
-          "stance": "由团队自行安排主要协作工作日",
-          "perspective": "GOVERNANCE",
+          "displayName": "沈芮",
+          "profession": "公交运营",
+          "title": "园区接驳线路调度主管",
+          "stance": "我主张保留下班高峰的固定班次，把预约车放到尾班后；若低谷预约能稳定合乘并让等车时间更短，再扩大覆盖。",
+          "perspective": "DELIVERY",
           "colorKey": "blue"
         },
         {
           "id": "e2",
           "role": "EXPERT",
-          "displayName": "郑弋",
-          "profession": "软件工程",
-          "title": "工程团队经理",
-          "stance": "异步优先并减少统一到岗要求",
-          "perspective": "DELIVERY",
+          "displayName": "龚可",
+          "profession": "工业园区用工服务",
+          "title": "园区工会通勤协调员",
+          "stance": "我主张保留电话预约和临时登车名额，优先帮助排班随时变化的人；如果这些名额长期闲置，再缩减预留。",
+          "perspective": "USER_IMPACT",
           "colorKey": "green"
         },
         {
           "id": "e3",
           "role": "EXPERT",
-          "displayName": "姜平",
-          "profession": "空间管理",
-          "title": "设施运营主管",
-          "stance": "固定到岗日期便于空间规划安排",
+          "displayName": "贺嘉树",
+          "profession": "公共交通财务",
+          "title": "公交成本与排班分析员",
+          "stance": "我倾向于先承诺到主要换乘站的接驳，按每次完成的夜班换乘算成本；若远端站点能减少大量单独接送，可纳入试点。",
           "perspective": "COST",
           "colorKey": "amber"
         },
         {
           "id": "e4",
           "role": "EXPERT",
-          "displayName": "苏晓",
-          "profession": "无障碍研究",
-          "title": "无障碍项目顾问",
-          "stance": "按办公可达性设置可申请的例外",
-          "perspective": "USER_IMPACT",
+          "displayName": "彭逸",
+          "profession": "交通服务监管",
+          "title": "城市公交服务质量主管",
+          "stance": "我主张先明确错过末班车的兜底责任，再扩大预约服务；如果试点能记录并处理漏接投诉，可放宽固定站点限制。",
+          "perspective": "GOVERNANCE",
           "colorKey": "rose"
         }
       ]
     },
     {
-      "slug": "museum-ai-guide",
-      "topic": "博物馆应上线可追问的生成式 AI 导览吗？",
+      "slug": "clinic-message-reminders",
+      "topic": "社区诊所应把复诊提醒默认改为微信消息吗？",
       "discussionGoal": "EVALUATE",
       "expertCount": 4,
       "participants": [
         {
           "id": "host",
           "role": "HOST",
-          "displayName": "夏澄",
-          "profession": "节目主持",
+          "displayName": "程蔓",
+          "profession": "议题访谈",
           "title": "圆桌主持人",
           "stance": null,
           "perspective": null,
@@ -469,56 +411,56 @@ HTTP `200`。
         {
           "id": "e1",
           "role": "EXPERT",
-          "displayName": "任青",
-          "profession": "展览策划",
-          "title": "展览策展人",
-          "stance": "严格限定可引用的馆藏证据材料",
-          "perspective": "EVIDENCE",
+          "displayName": "贾映雪",
+          "profession": "基层医疗运营",
+          "title": "社区卫生服务中心预约主管",
+          "stance": "我倾向对已验证绑定的患者默认用微信提醒；若未读比例升高且爽约率没有下降，就按联系习惯分流渠道。",
+          "perspective": "DELIVERY",
           "colorKey": "blue"
         },
         {
           "id": "e2",
           "role": "EXPERT",
-          "displayName": "田朗",
-          "profession": "互动产品",
-          "title": "互动产品经理",
-          "stance": "先在少数热门展品开展单馆试点",
-          "perspective": "DELIVERY",
+          "displayName": "陈言秋",
+          "profession": "基层卫生服务研究",
+          "title": "复诊依从性研究员",
+          "stance": "只有同年龄、同随访频率患者的实际复诊率提升，我才支持替换默认渠道；消息成功送达只能说明渠道可用。",
+          "perspective": "EVIDENCE",
           "colorKey": "green"
         },
         {
           "id": "e3",
           "role": "EXPERT",
-          "displayName": "祝桦",
-          "profession": "观众研究",
-          "title": "观众研究员",
-          "stance": "保留人工入口及低技术门槛导览",
+          "displayName": "谭晓岚",
+          "profession": "老年数字服务",
+          "title": "老年就医协助项目负责人",
+          "stance": "我主张由患者自己选择，特别是使用家属代管手机的人；如果电话随访能及时覆盖未读患者，我可以接受微信作为默认。",
           "perspective": "USER_IMPACT",
           "colorKey": "amber"
         },
         {
           "id": "e4",
           "role": "EXPERT",
-          "displayName": "罗澜",
-          "profession": "内容编辑",
-          "title": "内容编辑主管",
-          "stance": "可追溯材料充分后再开放追问",
+          "displayName": "严明舟",
+          "profession": "医疗隐私治理",
+          "title": "基层医疗数据保护负责人",
+          "stance": "只有绑定可撤销且锁屏通知不显示诊疗信息，我才支持默认微信；共用手机的告知与授权若无法核验，仍应沿用已确认的渠道。",
           "perspective": "RISK",
           "colorKey": "rose"
         }
       ]
     },
     {
-      "slug": "school-ai-homework",
-      "topic": "中学应允许学生用生成式 AI 完成家庭作业吗？",
-      "discussionGoal": "EVALUATE",
+      "slug": "grocery-pickup-delays",
+      "topic": "生鲜门店上线自提预约后，晚高峰等待为何反而变长？",
+      "discussionGoal": "SOLVE",
       "expertCount": 4,
       "participants": [
         {
           "id": "host",
           "role": "HOST",
-          "displayName": "梁青",
-          "profession": "节目主持",
+          "displayName": "孟澄",
+          "profession": "议题访谈",
           "title": "圆桌主持人",
           "stance": null,
           "perspective": null,
@@ -527,40 +469,156 @@ HTTP `200`。
         {
           "id": "e1",
           "role": "EXPERT",
-          "displayName": "沈初",
-          "profession": "语文教学",
-          "title": "语文教师",
-          "stance": "保留独立写作与同伴反馈作为评估依据",
+          "displayName": "韩池",
+          "profession": "生鲜门店运营",
+          "title": "门店拣货班组长",
+          "stance": "我怀疑预约单在高峰前集中下单，拣货赶不上取货；若到店前备齐的订单同样排长队，拣货就不是首要瓶颈。",
+          "perspective": "DELIVERY",
+          "colorKey": "blue"
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "樊岑",
+          "profession": "零售履约分析",
+          "title": "门店履约数据分析师",
+          "stance": "我会核对上线前后等待起止点是否一致；若用相同到店和交付时间重算后差异仍在，再按门店和时段查原因。",
+          "perspective": "EVIDENCE",
+          "colorKey": "green"
+        },
+        {
+          "id": "e3",
+          "role": "EXPERT",
+          "displayName": "庄雨亭",
+          "profession": "零售服务设计",
+          "title": "门店取货体验研究员",
+          "stance": "我怀疑顾客到店后找不到专用取货入口，导致二次排队；若入口清晰的门店也出现同等延迟，应优先查柜台交接。",
+          "perspective": "USER_IMPACT",
+          "colorKey": "amber"
+        },
+        {
+          "id": "e4",
+          "role": "EXPERT",
+          "displayName": "丁叙",
+          "profession": "冷链质量管理",
+          "title": "门店冷链品控主管",
+          "stance": "我会先排查冷藏品临时补拣是否堵住交接；若常温单同幅变慢，不能用冷链异常解释全部等待增长。",
+          "perspective": "RISK",
+          "colorKey": "rose"
+        }
+      ]
+    },
+    {
+      "slug": "office-retrofit-heat",
+      "topic": "老旧办公楼降温，应优先换空调还是先做外遮阳？",
+      "discussionGoal": "EVALUATE",
+      "expertCount": 4,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "常栖",
+          "profession": "议题访谈",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet"
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "纪文翊",
+          "profession": "建筑节能",
+          "title": "既有建筑能耗诊断工程师",
+          "stance": "若西晒区负荷集中在午后，我倾向先装外遮阳；如果夜间和背阴区也普遍过热，应先查空调制冷能力。",
           "perspective": "EVIDENCE",
           "colorKey": "blue"
         },
         {
           "id": "e2",
           "role": "EXPERT",
-          "displayName": "白原",
-          "profession": "数字素养",
-          "title": "数字素养教师",
-          "stance": "明确引用规则后允许可追溯的辅助",
-          "perspective": "GOVERNANCE",
+          "displayName": "顾晴",
+          "profession": "楼宇运维",
+          "title": "商业楼宇暖通运维主管",
+          "stance": "若故障主要来自老机组频繁停机，我支持先更换故障机组；若保养后制冷能力达标，就先处理窗面得热。",
+          "perspective": "DELIVERY",
           "colorKey": "green"
         },
         {
           "id": "e3",
           "role": "EXPERT",
-          "displayName": "叶秋",
-          "profession": "教育研究",
-          "title": "教育研究员",
-          "stance": "按作业难度开展小规模分层试点",
-          "perspective": "DELIVERY",
+          "displayName": "卢清越",
+          "profession": "物业资产管理",
+          "title": "办公楼改造造价负责人",
+          "stance": "我支持以全周期成本比较两条路径：遮阳若要长时间脚手架和外墙审批，局部换机可能更划算；低成本可拆方案会改变排序。",
+          "perspective": "COST",
           "colorKey": "amber"
         },
         {
           "id": "e4",
           "role": "EXPERT",
-          "displayName": "葛琴",
-          "profession": "家校协作",
-          "title": "家校协作主管",
-          "stance": "处理设备不平等之后再开放工具",
+          "displayName": "乔予安",
+          "profession": "室内环境设计",
+          "title": "办公舒适度评估师",
+          "stance": "我优先考虑工位体感与日照眩光，倾向在窗边试装遮阳；若遮阳后相邻区域温差和投诉没有下降，优先调整空调分区。",
+          "perspective": "USER_IMPACT",
+          "colorKey": "rose"
+        }
+      ]
+    },
+    {
+      "slug": "rental-repair-disputes",
+      "topic": "租赁社区如何改进报修流程，减少超时和押金纠纷？",
+      "discussionGoal": "PROPOSE",
+      "expertCount": 4,
+      "participants": [
+        {
+          "id": "host",
+          "role": "HOST",
+          "displayName": "夏临",
+          "profession": "议题访谈",
+          "title": "圆桌主持人",
+          "stance": null,
+          "perspective": null,
+          "colorKey": "violet"
+        },
+        {
+          "id": "e1",
+          "role": "EXPERT",
+          "displayName": "季雪宁",
+          "profession": "住房租赁服务",
+          "title": "长租社区管家主管",
+          "stance": "我主张受理时即区分漏水断电与普通维修，并给租客明确上门时段；若分级后普通故障积压，需要单独安排小修班次。",
+          "perspective": "DELIVERY",
+          "colorKey": "blue"
+        },
+        {
+          "id": "e2",
+          "role": "EXPERT",
+          "displayName": "乔晟",
+          "profession": "住宅维修运营",
+          "title": "小区维修派工负责人",
+          "stance": "我倾向把批量上门用于低风险小修；若同类问题重复返修率上升，先独立处理易误诊的故障，再决定是否合并。",
+          "perspective": "COST",
+          "colorKey": "green"
+        },
+        {
+          "id": "e3",
+          "role": "EXPERT",
+          "displayName": "袁珂",
+          "profession": "消费权益调解",
+          "title": "住房租赁纠纷调解员",
+          "stance": "我主张报修时记录设备初始状态和正常损耗，扣押金时逐项出示依据；若现场照片不能说明责任，安排双方核对。",
+          "perspective": "GOVERNANCE",
+          "colorKey": "amber"
+        },
+        {
+          "id": "e4",
+          "role": "EXPERT",
+          "displayName": "韩舒",
+          "profession": "社区租客服务",
+          "title": "租客服务站协调员",
+          "stance": "我优先提供可重新预约的晚间时段和进度通知；若爽约集中在日间第三方维修商，先改善上门承诺再增加通知。",
           "perspective": "USER_IMPACT",
           "colorKey": "rose"
         }
@@ -593,7 +651,7 @@ HTTP `500` 示例。
 
 #### 请求参数
 
-- Path `slug`（字符串，必填）为预设标识，例如 `hybrid-work-policy`。
+- Path `slug`（字符串，必填）为预设标识，例如 `bus-demand-shuttle`。
 - Query 为空。
 - Body 为空。
 
@@ -602,7 +660,7 @@ HTTP `500` 示例。
 以下 JSON 表示路径和查询参数。实际请求通过 URL 传参，请求体为空。
 
 ```json
-{"params":{"slug":"hybrid-work-policy"}}
+{"params":{"slug":"bus-demand-shuttle"}}
 ```
 
 #### 响应参数
@@ -622,7 +680,7 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
   "message": "成功",
   "data": {
     "id": "00000000-0000-4000-8000-00000000000c",
-    "topic": "如何设计百人公司的混合办公规则？",
+    "topic": "近郊产业园如何试点预约接驳，让夜班通勤更可靠？",
     "expertCount": 4,
     "discussionGoal": "PROPOSE",
     "status": "DRAFT",
@@ -633,8 +691,8 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
       {
         "id": "copy-host",
         "role": "HOST",
-        "displayName": "许明",
-        "profession": "节目主持",
+        "displayName": "苏迢",
+        "profession": "议题访谈",
         "title": "圆桌主持人",
         "stance": null,
         "perspective": null,
@@ -645,11 +703,11 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
       {
         "id": "copy-e1",
         "role": "EXPERT",
-        "displayName": "周弦",
-        "profession": "人事管理",
-        "title": "人力资源负责人",
-        "stance": "由团队自行安排主要协作工作日",
-        "perspective": "GOVERNANCE",
+        "displayName": "沈芮",
+        "profession": "公交运营",
+        "title": "园区接驳线路调度主管",
+        "stance": "我主张保留下班高峰的固定班次，把预约车放到尾班后；若低谷预约能稳定合乘并让等车时间更短，再扩大覆盖。",
+        "perspective": "DELIVERY",
         "colorKey": "blue",
         "stageStatus": "IDLE",
         "publicFocus": null
@@ -657,11 +715,11 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
       {
         "id": "copy-e2",
         "role": "EXPERT",
-        "displayName": "郑弋",
-        "profession": "软件工程",
-        "title": "工程团队经理",
-        "stance": "异步优先并减少统一到岗要求",
-        "perspective": "DELIVERY",
+        "displayName": "龚可",
+        "profession": "工业园区用工服务",
+        "title": "园区工会通勤协调员",
+        "stance": "我主张保留电话预约和临时登车名额，优先帮助排班随时变化的人；如果这些名额长期闲置，再缩减预留。",
+        "perspective": "USER_IMPACT",
         "colorKey": "green",
         "stageStatus": "IDLE",
         "publicFocus": null
@@ -669,10 +727,10 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
       {
         "id": "copy-e3",
         "role": "EXPERT",
-        "displayName": "姜平",
-        "profession": "空间管理",
-        "title": "设施运营主管",
-        "stance": "固定到岗日期便于空间规划安排",
+        "displayName": "贺嘉树",
+        "profession": "公共交通财务",
+        "title": "公交成本与排班分析员",
+        "stance": "我倾向于先承诺到主要换乘站的接驳，按每次完成的夜班换乘算成本；若远端站点能减少大量单独接送，可纳入试点。",
         "perspective": "COST",
         "colorKey": "amber",
         "stageStatus": "IDLE",
@@ -681,11 +739,11 @@ HTTP `201`。响应头 `Location: /api/v1/discussions/00000000-0000-4000-8000-00
       {
         "id": "copy-e4",
         "role": "EXPERT",
-        "displayName": "苏晓",
-        "profession": "无障碍研究",
-        "title": "无障碍项目顾问",
-        "stance": "按办公可达性设置可申请的例外",
-        "perspective": "USER_IMPACT",
+        "displayName": "彭逸",
+        "profession": "交通服务监管",
+        "title": "城市公交服务质量主管",
+        "stance": "我主张先明确错过末班车的兜底责任，再扩大预约服务；如果试点能记录并处理漏接投诉，可放宽固定站点限制。",
+        "perspective": "GOVERNANCE",
         "colorKey": "rose",
         "stageStatus": "IDLE",
         "publicFocus": null
@@ -1052,7 +1110,7 @@ sequenceDiagram
   "data": {
     "discussionCounts": {"DRAFT": 1, "RUNNING": 0, "SUMMARIZING": 0, "COMPLETED": 2, "FAILED": 0},
     "totalDiscussions": 3,
-    "presetCount": 5,
+    "presetCount": 6,
     "utteranceCount": 16,
     "insightCount": 4,
     "eventCount": 68
