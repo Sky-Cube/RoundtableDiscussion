@@ -57,11 +57,19 @@ public class RuntimeCalls {
 
     public <T> T call(RuntimeTask task, Map<String, Object> input, DiscussionBudget budget,
             boolean inWindow, Instant deadline, Runnable onStart, Function<JsonNode, T> validator) {
-        return await(submit(() -> {
-            requireCurrent(deadline);
-            onStart.run();
-            return invoke(task, input, budget, inWindow, deadline, validator);
-        }), deadline);
+        try {
+            return await(submit(() -> {
+                requireCurrent(deadline);
+                onStart.run();
+                return invoke(task, input, budget, inWindow, deadline, validator);
+            }), deadline);
+        } catch (ModelGatewayException failure) {
+            throw failure;
+        } catch (RuntimeException failure) {
+            // 状态写入或校验器的意外异常只应终止本次调用，不能让整个讨论线程崩溃。
+            LOG.warn("模型调用执行异常 task={} error={}", task, failure.getClass().getName());
+            throw new ModelGatewayException(ModelGatewayException.Kind.UPSTREAM_ERROR, "模型调用执行异常", failure);
+        }
     }
 
     public <T> List<T> collect(List<Supplier<T>> requests, Instant deadline) {
@@ -84,6 +92,9 @@ public class RuntimeCalls {
                     results.add(await(pending, deadline));
                 } catch (ModelGatewayException error) {
                     // 隔离单个候选的失败，继续收集及时返回的有效结果。
+                } catch (RuntimeException error) {
+                    // 单个候选的意外异常同样只影响它自己，避免整窗报名失败。
+                    LOG.warn("模型候选执行异常 error={}", error.getClass().getName());
                 }
             }
         } finally {
@@ -121,6 +132,10 @@ public class RuntimeCalls {
                 }
                 codes = failure.kind() == ModelGatewayException.Kind.FORMAT_INVALID
                         ? List.of(failure.getMessage()) : List.of();
+            } catch (RuntimeException failure) {
+                // 模型输出已通过 Schema，业务校验仍出现意外异常时按上游故障隔离本次任务。
+                LOG.warn("模型任务执行异常 task={} attempt={} error={}", task, attempt + 1, failure.getClass().getName());
+                throw new ModelGatewayException(ModelGatewayException.Kind.UPSTREAM_ERROR, "模型任务执行异常", failure);
             }
         }
         throw new IllegalStateException("模型尝试次数异常");

@@ -105,6 +105,32 @@ class DiscussionRulesTest {
     }
 
     @Test
+    void isolatesUnexpectedExceptionFromOnStartIntoCurrentCall() throws Exception {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(2);
+        executor.initialize();
+        try {
+            RuntimeCalls calls = new RuntimeCalls((task, input, codes, deadline) -> {
+                throw new AssertionError("阶段写入失败不应进入模型调用");
+            }, new RuntimeContract(mapper), new ContentGuard(), executor, Clock.systemUTC());
+            DiscussionBudget budget = new DiscussionBudget(Clock.systemUTC());
+            assertThatExceptionOfType(ModelGatewayException.class)
+                    .isThrownBy(() -> calls.call(RuntimeTask.R05, Map.of(), budget, false,
+                            Instant.now().plusSeconds(5), () -> {
+                                throw new IllegalStateException("合成阶段写入失败");
+                            }, json -> "ok"))
+                    .satisfies(error -> {
+                        assertThat(error.kind()).isEqualTo(ModelGatewayException.Kind.UPSTREAM_ERROR);
+                        assertThat(error.getCause()).isInstanceOf(IllegalStateException.class);
+                    });
+        } finally {
+            executor.shutdown();
+        }
+    }
+
+    @Test
     void preservesRequiredReplyChainAndRejectsQuotesOutsideTheSlice() throws Exception {
         RuntimeGateway measured = new RuntimeGateway() {
             @Override

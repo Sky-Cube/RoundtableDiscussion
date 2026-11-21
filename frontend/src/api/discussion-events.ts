@@ -20,6 +20,12 @@ export const eventNames: EventName[] = ['discussion.status', 'participant.status
 type Fields = Record<string, unknown>
 const utcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/
 const stageTransitions = { IDLE: ['PREPARING'], PREPARING: ['SPEAKING', 'IDLE'], SPEAKING: ['SPEAKING', 'IDLE'] }
+// 主持人不经过准备阶段，只会公开开场、串联和收尾的发言状态。
+const hostTransitions: Record<Participant['stageStatus'], readonly string[]> = {
+  IDLE: ['SPEAKING'],
+  PREPARING: [],
+  SPEAKING: ['SPEAKING', 'IDLE'],
+}
 const transitions: Record<DiscussionSnapshot['status'], readonly string[]> = {
   DRAFT: ['RUNNING'],
   RUNNING: ['SUMMARIZING', 'FAILED'],
@@ -126,10 +132,18 @@ export function applyEvent(room: DiscussionSnapshot, name: EventName, payload: u
       return { ...room, ...payload }
     }
     case 'participant.status': {
-      if (room.status !== 'RUNNING' || !isParticipantStatus(payload)) return
-      const member = room.participants.find(item => item.id === payload.participantId && item.role === 'EXPERT')
-      if (!member || !stageTransitions[member.stageStatus].includes(payload.stageStatus)) return
+      if ((room.status !== 'RUNNING' && room.status !== 'SUMMARIZING') || !isParticipantStatus(payload)) return
+      const member = room.participants.find(item => item.id === payload.participantId)
+      if (!member) return
+      const allowed = member.role === 'HOST' ? hostTransitions[member.stageStatus] : stageTransitions[member.stageStatus]
+      if (!allowed.includes(payload.stageStatus)) return
       const { stageStatus, publicFocus, publicSummary, publicSpeech } = payload
+      // 主持人只公开阶段状态，携带专属发言内容的事件按非法载荷处理。
+      if (member.role === 'HOST') {
+        if (publicSummary != null || publicSpeech != null) return
+        return { ...room, participants: room.participants.map(item => item === member
+          ? { ...item, stageStatus, publicFocus } : item) }
+      }
       if (publicSpeech && member.publicSpeech && !publicSpeech.startsWith(member.publicSpeech)) return
       const participants = room.participants.map(item => item === member
         ? { ...item, stageStatus, publicFocus, publicSummary: publicSummary ?? null, publicSpeech: publicSpeech ?? null }

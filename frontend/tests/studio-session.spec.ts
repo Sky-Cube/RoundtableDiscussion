@@ -76,6 +76,21 @@ describe('P04 房间会话与演播厅', () => {
     expect(document.activeElement?.getAttribute('data-speech')).toBe('2')
   })
 
+  it('接受主持人的阶段状态事件，不触发重新订阅', async () => {
+    const { wrapper } = await open()
+    streams[0].send('participant.status', {
+      discussionId: roomA,
+      seq: 3,
+      occurredAt: '2026-11-21T08:00:00Z',
+      payload: { participantId: 'host', stageStatus: 'SPEAKING', publicFocus: null },
+    })
+    await flushPromises()
+    expect(streams).toHaveLength(1)
+    expect(streams[0].close).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('h1').text()).toBe(fixture.snapshots.A2.topic)
+  })
+
   it.each(['缺号', 'ID 不符', '非法载荷'])('发现%s后关闭旧流，以新快照续订', async (fault) => {
     const { wrapper } = await open()
     snapshots[roomA] = fixture.snapshots.A17
