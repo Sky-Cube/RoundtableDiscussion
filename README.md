@@ -11,23 +11,12 @@
 
 **页面预览：**
 
-首页：<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213558851.png" alt="image-20261121213558851" style="zoom: 33%;" />
+首页：![首页](assets/image-20261121213558851.png)
+角色生成页面：![角色生成页面](assets/image-20261121213634150.png)
+演播厅讨论页面：![演播厅讨论页面](assets/image-20261121213710785.png)
+讨论结果页面：![讨论结果页面](assets/image-20261121214756529.png)
+后台管理页面：![后台管理页面](assets/image-20261121213813449.png)
 
-角色生成页面：
-
-<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213634150.png" alt="image-20261121213634150" style="zoom: 33%;" />
-
-演播厅讨论页面：
-
-<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213710785.png" alt="image-20261121213710785" style="zoom: 33%;" />
-
-讨论结果页面：
-
-<img src="D:\Work\RoundtableDiscussion\assets\image-20261121214756529.png" alt="image-20261121214756529" style="zoom:33%;" />
-
-后台管理页面：
-
-<img src="D:\Work\RoundtableDiscussion\assets\image-20261121213813449.png" alt="image-20261121213813449" style="zoom:33%;" />
 
 ## 1. 功能一览
 
