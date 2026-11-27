@@ -43,6 +43,9 @@ frontend/screenshots/
 /data/
 /backend/data/
 
+# 作业原文仅本地留存，不纳入版本库
+/AI开发实习生远程作业-AI圆桌讨论WebAppMVP.md
+
 # 本地日志、编辑器与系统文件
 *.log
 *.log.*
